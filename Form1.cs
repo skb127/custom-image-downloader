@@ -192,20 +192,27 @@ public partial class BulkImageDownloader : Form
             string fecha = DateTime.Now.ToString("yyyy-MM-dd");
             string hora = DateTime.Now.ToString("HH:mm:ss");
 
-            // 2. Define the file name (e.g.: log_2026-03-20.txt)
-            // AppDomain.CurrentDomain.BaseDirectory is the folder where your .exe is running
-            string rutaLog = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"log_{fecha}.txt");
+            // 2. Define the path for the "logs" subfolder (next to the .exe)
+            string carpetaLogs = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
 
-            // 3. Format the line to be written
+            // 3. Create the "logs" folder if it doesn't exist yet
+            if (!Directory.Exists(carpetaLogs))
+            {
+                Directory.CreateDirectory(carpetaLogs);
+            }
+
+            // 4. Define the full path of the log file inside the logs folder
+            string rutaLog = Path.Combine(carpetaLogs, $"log_{fecha}.txt");
+
+            // 5. Format the line to be written
             string lineaLog = $"[{hora}] {mensaje}{Environment.NewLine}";
 
-            // 4. Append the text to the file (if it doesn't exist, it is created automatically)
+            // 6. Append the text to the file
             await File.AppendAllTextAsync(rutaLog, lineaLog);
         }
         catch
         {
-            // If the logging system fails (e.g. due to permissions), ignore silently
-            // so it doesn't break the main application.
+            // If it fails due to lack of permissions, ignore it so the app doesn't crash
         }
     }
 
