@@ -1,4 +1,4 @@
-# Custom Image Downloader
+# Custom Image Downloader V 1.0.0
 
 A simple Windows Forms application that downloads files (typically images) from a list of URLs and saves them into a user-specified subfolder.
 
