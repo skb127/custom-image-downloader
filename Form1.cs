@@ -1,10 +1,4 @@
-using System;
 using System.Diagnostics;
-using System.IO;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 
 namespace custom_image_downloader;
 
@@ -13,6 +7,8 @@ public partial class BulkImageDownloader : Form
     private static readonly HttpClient clienteHttp = new HttpClient();
 
     private CancellationTokenSource? cts;
+
+    private bool estaPausado = false;
 
     public BulkImageDownloader()
     {
@@ -27,33 +23,27 @@ public partial class BulkImageDownloader : Form
         btnCancelar.Enabled = false;
     }
 
-    private void textBox1_TextChanged(object sender, EventArgs e)
-    {
-
-    }
-
     // Event to select the destination folder
     private void btnSeleccionarCarpeta_Click(object sender, EventArgs e)
     {
-        using (FolderBrowserDialog dialog = new FolderBrowserDialog())
+        using FolderBrowserDialog dialog = new FolderBrowserDialog();
+
+        dialog.Description = "Select the folder where files will be saved";
+        if (dialog.ShowDialog() == DialogResult.OK)
         {
-            dialog.Description = "Select the folder where files will be saved";
-            if (dialog.ShowDialog() == DialogResult.OK)
-            {
-                txtCarpeta.Text = dialog.SelectedPath;
-            }
+            txtCarpeta.Text = dialog.SelectedPath;
         }
     }
 
     // Asynchronous event to download files
     private async void btnDescargar_Click(object sender, EventArgs e)
     {
-        string[] urls = txtUrls.Text.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
+        string[] urls = [.. txtUrls.Text
+            .Split([Environment.NewLine], StringSplitOptions.RemoveEmptyEntries)
+            .Where(url => !string.IsNullOrWhiteSpace(url))];
 
-        // --- REDEFINE VARIABLES BASED ON NEW REQUIREMENTS ---
-        // txtCarpeta is now the PARENT PATH (e.g.: C:\Downloads)
         string rutaPadre = txtCarpeta.Text.Trim();
-        // txtNombreBase is now the SUBFOLDER NAME (e.g.: cm91)
+
         string nombreSubcarpeta = txtNombreBase.Text.Trim();
 
         // Basic field validations
@@ -63,18 +53,15 @@ public partial class BulkImageDownloader : Form
             return;
         }
 
-        // --- MAGIC #1: AUTOMATIC FOLDER CREATION ---
         // Combine the parent path with the subfolder name to get the final full path
         string rutaCompletaSubcarpeta = Path.Combine(rutaPadre, nombreSubcarpeta);
 
         try
         {
-            // CreateDirectory ensures the folder exists. If it already exists, it does nothing.
             Directory.CreateDirectory(rutaCompletaSubcarpeta);
         }
         catch (Exception ex)
         {
-            // For example: no write permissions on the parent path.
             MessageBox.Show($"Error creating folder '{nombreSubcarpeta}' in path '{rutaPadre}':\n{ex.Message}");
             return;
         }
@@ -82,6 +69,17 @@ public partial class BulkImageDownloader : Form
         // Prepare UI
         btnDescargar.Enabled = false;
         btnCancelar.Enabled = true;
+        btnPausar.Enabled = true;
+        estaPausado = false;
+        btnPausar.Text = "Pause";
+        btnPausar.Image = Properties.Resources.pause;
+        btnPausar.Padding = new Padding(20, 0, 0, 0);
+
+        txtUrls.Enabled = false;
+        txtCarpeta.Enabled = false;
+        btnSeleccionarCarpeta.Enabled = false;
+        txtNombreBase.Enabled = false;
+        numConcurrencia.Enabled = false;
 
         int totalUrls = urls.Length;
         pbProgreso.Maximum = totalUrls;
@@ -91,123 +89,230 @@ public partial class BulkImageDownloader : Form
         int descargasFallidas = 0;
         bool fueCancelado = false;
 
-        // NEW: initialize cancellation token
         cts = new CancellationTokenSource();
 
         await EscribirLogAsync($"--- DOWNLOADS START IN FOLDER: [{nombreSubcarpeta}] ({totalUrls} URLs) ---");
 
+        // Set the concurrent downloads limit
+        int maxDescargasSimultaneas = (int)numConcurrencia.Value;
+        using SemaphoreSlim semaforo = new SemaphoreSlim(maxDescargasSimultaneas);
+
+        // List to store all tasks that we will launch
+        List<Task> tareas = new List<Task>();
+
+        // Safe system to update the Graphical Interface (UI) from multiple tasks
+        int archivosProcesados = 0;
+        var progresoUI = new Progress<int>(procesados =>
+        {
+            pbProgreso.Value = procesados;
+
+            if (estaPausado)
+            {
+                lblEstado.Text = $"Paused (Completed {procesados} of {totalUrls})...";
+            }
+            else
+            {
+                lblEstado.Text = $"Processing {procesados} of {totalUrls}...";
+            }
+        });
+
+        // Launch all tasks (the semaphore will pause them if there are more than 5)
         for (int i = 0; i < totalUrls; i++)
         {
-            if (cts.Token.IsCancellationRequested)
-            {
-                fueCancelado = true;
-                break;
-            }
-
             string urlActual = urls[i].Trim();
-            lblEstado.Text = $"Processing {i + 1} of {totalUrls}...";
+            int indiceArchivo = i + 1; 
 
-            try
+            // Create an asynchronous task for each URL and add it to the list
+            tareas.Add(Task.Run(async () =>
             {
-                // Use Uri class to parse the URL safely and avoid issues with query parameters (?query=...)
-                Uri uri = new Uri(urlActual);
-                // Extract only the file name from the Uri's LocalPath. e.g.: 050.jpg
-                string nombreArchivoOriginal = Path.GetFileName(uri.LocalPath);
+                // Wait for turn if there are already downloads in progress (more than the limit defined by the user)
+                await semaforo.WaitAsync(cts.Token);
 
-                if (string.IsNullOrWhiteSpace(nombreArchivoOriginal))
+                try
                 {
-                    // Safety fallback in case the URL is odd (e.g. ends with /)
-                    nombreArchivoOriginal = $"downloaded_file_{DateTime.Now.Ticks}.bin";
+                    if (cts.Token.IsCancellationRequested)
+                    {
+                        fueCancelado = true;
+                        return;
+                    }
+
+                    while (estaPausado)
+                    {
+                        // While paused, the task "sleeps" half a second and checks again.
+                        // By passing the cts.Token, if the user clicks Cancel while paused,
+                        // Task.Delay will throw immediately and cancel everything cleanly.
+                        await Task.Delay(500, cts.Token);
+                    }
+
+                    // Just in case they clicked cancel in the microsecond it resumed
+                    cts.Token.ThrowIfCancellationRequested();
+
+                    Uri uri = new(urlActual);
+                    string nombreArchivoOriginal = Path.GetFileName(uri.LocalPath);
+                    if (string.IsNullOrWhiteSpace(nombreArchivoOriginal))
+                    {
+                        nombreArchivoOriginal = $"downloaded_file_{DateTime.Now.Ticks}.bin";
+                    }
+
+                    string extension = Path.GetExtension(nombreArchivoOriginal);
+                    if (string.IsNullOrEmpty(extension)) extension = ".bin";
+                    string nombreFinal = $"{nombreSubcarpeta}_{indiceArchivo.ToString("D3")}{extension}";
+
+                    string rutaCompletaArchivo = Path.Combine(rutaCompletaSubcarpeta, nombreFinal);
+
+                    // Concurrent download and write
+                    byte[] datosArchivo = await clienteHttp.GetByteArrayAsync(urlActual, cts.Token);
+                    await File.WriteAllBytesAsync(rutaCompletaArchivo, datosArchivo, cts.Token);
+
+                    Interlocked.Increment(ref descargasExitosas);
+                    await EscribirLogAsync($"SUCCESS: [{nombreFinal}] downloaded.");
                 }
-
-                // The full path where we will save the file will be: Parent/Subfolder/OriginalName.ext
-                string rutaCompletaArchivo = Path.Combine(rutaCompletaSubcarpeta, nombreArchivoOriginal);
-
-                // --- MAGIC #3 (REPLACE): WriteAllBytesAsync does it by default. No extra logic needed. ---
-                // Simply download and overwrite if it already exists.
-                byte[] datosArchivo = await clienteHttp.GetByteArrayAsync(urlActual, cts.Token);
-                await File.WriteAllBytesAsync(rutaCompletaArchivo, datosArchivo, cts.Token);
-
-                descargasExitosas++;
-                await EscribirLogAsync($"SUCCESS: [{nombreArchivoOriginal}] saved in subfolder [{nombreSubcarpeta}]");
-            }
-            catch (OperationCanceledException)
-            {
-                fueCancelado = true;
-                await EscribirLogAsync($"CANCELLED: Download of {urlActual} was interrupted by the user.");
-                break;
-            }
-            catch (UriFormatException ex)
-            {
-                descargasFallidas++;
-                await EscribirLogAsync($"INVALID URL ERROR: {urlActual}. Reason: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                descargasFallidas++;
-                await EscribirLogAsync($"ERROR: Failed to save file from {urlActual}. Reason: {ex.Message}");
-            }
-            finally
-            {
-                if (!fueCancelado)
+                catch (OperationCanceledException)
                 {
-                    pbProgreso.Value = i + 1;
+                    fueCancelado = true;
                 }
-            }
+                catch (Exception ex)
+                {
+                    Interlocked.Increment(ref descargasFallidas);
+                    await EscribirLogAsync($"ERROR URL: {urlActual}. Reason: {ex.Message}");
+                }
+                finally
+                {
+                    // Release the space for the next download to enter
+                    semaforo.Release();
+
+                    // Safely increment processed files and update UI
+                    int totalCompletados = Interlocked.Increment(ref archivosProcesados);
+                    if (!fueCancelado)
+                    {
+                        // Report progress back to the graphical interface safely
+                        ((IProgress<int>)progresoUI).Report(totalCompletados);
+                    }
+                }
+            }, cts.Token));
         }
 
-        // 5. Finish and restore UI
+        try
+        {
+            // Wait for ALL tasks in the list to complete
+            await Task.WhenAll(tareas);
+        }
+        catch (OperationCanceledException)
+        {
+            fueCancelado = true;
+        }
+
+        // Finish and restore UI
         btnDescargar.Enabled = true;
         btnCancelar.Enabled = false;
+        btnPausar.Enabled = false;
+
+        txtUrls.Enabled = true;
+        txtCarpeta.Enabled = true;
+        btnSeleccionarCarpeta.Enabled = true;
+        txtNombreBase.Enabled = true;
+        numConcurrencia.Enabled = true;
 
         cts.Dispose();
         cts = null;
 
         if (fueCancelado)
         {
-            string msjCancelado = $"Process cancelled.\nSuccessful: {descargasExitosas}\nFailed: {descargasFallidas}\nIn folder: {nombreSubcarpeta}";
-            lblEstado.Text = "Download cancelled by user.";
-            await EscribirLogAsync($"--- END (CANCELLED). Successful: {descargasExitosas} | Failed: {descargasFallidas} ---");
-            MessageBox.Show(msjCancelado, "Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            pbProgreso.Value = 0;
+
+            lblEstado.Text = "Cancelling and cleaning files...";
+
+            bool carpetaEliminada = false;
+
+            // Try to delete the folder and all its contents
+            try
+            {
+                if (Directory.Exists(rutaCompletaSubcarpeta))
+                {
+                    Directory.Delete(rutaCompletaSubcarpeta, true);
+                    carpetaEliminada = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                await EscribirLogAsync($"WARNING: Could not delete cancelled folder. Reason: {ex.Message}");
+            }
+
+            // Build final message depending on whether we could delete or not
+            string msjCancelado = "The download was cancelled.\n\n";
+
+            if (carpetaEliminada)
+            {
+                msjCancelado += $"The folder '{nombreSubcarpeta}' and all partial files have been deleted successfully.";
+                await EscribirLogAsync($"--- END (CANCELLED). Partial files were deleted safely. ---");
+            }
+            else
+            {
+                msjCancelado += $"We could not delete the folder '{nombreSubcarpeta}' automatically. You may need to delete it manually.";
+                await EscribirLogAsync($"--- END (CANCELLED). Error cleaning up partial folder. ---");
+            }
+
+            lblEstado.Text = "Ready";
+            MessageBox.Show(msjCancelado, "Process Cancelled", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
         else
         {
-            string mensajeFinal = $"Download completed.\nSubfolder '{nombreSubcarpeta}' created successfully.\nSuccessful files: {descargasExitosas}\nFailed: {descargasFallidas}\n\nExisting files have been replaced.";
-            lblEstado.Text = "Process complete!";
-            await EscribirLogAsync($"--- END OF DOWNLOADS. Success: {descargasExitosas} | Failed: {descargasFallidas} | Folder: {nombreSubcarpeta} ---");
-            MessageBox.Show(mensajeFinal, "Results", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            if (descargasExitosas == 0)
+            {
+                lblEstado.Text = "Download failed!";
+                string msjFallo = $"Could not download any files from the list.\nTotal failures: {descargasFallidas}\n\nCheck the log file to see the reason for the errors.";
 
-            Process.Start("explorer.exe", rutaCompletaSubcarpeta);
+                try
+                {
+                    if (Directory.Exists(rutaCompletaSubcarpeta))
+                    {
+                        Directory.Delete(rutaCompletaSubcarpeta, true);
+                    }
+                }
+                catch {  }
+
+                await EscribirLogAsync($"--- END OF DOWNLOADS. Total failure: {descargasFallidas} errors. Empty folder deleted. ---");
+
+                MessageBox.Show(msjFallo, "Download Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            } else
+            {
+                string mensajeFinal = $"Download completed!\n\n" +
+                                      $"• Successful files: {descargasExitosas}\n" +
+                                      $"• Failed: {descargasFallidas}\n\n" +
+                                      $"Do you want to open the folder '{nombreSubcarpeta}' to view the images now?";
+                lblEstado.Text = "Ready";
+
+                await EscribirLogAsync($"--- END OF DOWNLOADS. Success: {descargasExitosas} | Failed: {descargasFallidas} | Folder: {nombreSubcarpeta} ---");
+
+                DialogResult respuesta = MessageBox.Show(mensajeFinal, "Results", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+
+                if (respuesta == DialogResult.Yes)
+                {
+                    Process.Start("explorer.exe", rutaCompletaSubcarpeta);
+                }
+            }
         }
     }
 
-    // ==========================================
-    // NEW METHOD: Logging system
-    // ==========================================
     private async Task EscribirLogAsync(string mensaje)
     {
         try
         {
-            // 1. Get current date and time
             string fecha = DateTime.Now.ToString("yyyy-MM-dd");
             string hora = DateTime.Now.ToString("HH:mm:ss");
 
-            // 2. Define the path for the "logs" subfolder (next to the .exe)
             string carpetaLogs = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
 
-            // 3. Create the "logs" folder if it doesn't exist yet
+            // Create the "logs" folder if it doesn't exist yet
             if (!Directory.Exists(carpetaLogs))
             {
                 Directory.CreateDirectory(carpetaLogs);
             }
 
-            // 4. Define the full path of the log file inside the logs folder
             string rutaLog = Path.Combine(carpetaLogs, $"log_{fecha}.txt");
 
-            // 5. Format the line to be written
             string lineaLog = $"[{hora}] {mensaje}{Environment.NewLine}";
 
-            // 6. Append the text to the file
             await File.AppendAllTextAsync(rutaLog, lineaLog);
         }
         catch
@@ -230,5 +335,27 @@ public partial class BulkImageDownloader : Form
     private void txtCarpeta_Click(object sender, EventArgs e)
     {
         btnSeleccionarCarpeta_Click(sender, e);
+    }
+
+    private void btnPausar_Click(object sender, EventArgs e)
+    {
+        estaPausado = !estaPausado;
+
+        if (estaPausado)
+        {
+            btnPausar.Text = "Resume";
+            btnPausar.Image = Properties.Resources.resume;
+            btnPausar.Padding = new Padding(18, 0, 0, 0);
+
+            lblEstado.Text = "Paused (waiting for current downloads to finish)...";
+        }
+        else
+        {
+            btnPausar.Text = "Pause";
+            btnPausar.Image = Properties.Resources.pause;
+            btnPausar.Padding = new Padding(20, 0, 0, 0);
+
+            lblEstado.Text = "Download resumed...";
+        }
     }
 }

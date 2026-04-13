@@ -23,8 +23,8 @@
         #region Windows Form Designer generated code
 
         /// <summary>
-        ///  Required method for Designer support - do not modify
-        ///  the contents of this method with the code editor.
+        /// Required method for Designer support - do not modify
+        /// the contents of this method with the code editor.
         /// </summary>
         private void InitializeComponent()
         {
@@ -37,6 +37,10 @@
             lblEstado = new Label();
             pbProgreso = new ProgressBar();
             btnCancelar = new Button();
+            numConcurrencia = new NumericUpDown();
+            label1 = new Label();
+            btnPausar = new Button();
+            ((System.ComponentModel.ISupportInitialize)numConcurrencia).BeginInit();
             SuspendLayout();
             // 
             // txtUrls
@@ -48,10 +52,10 @@
             txtUrls.ScrollBars = ScrollBars.Vertical;
             txtUrls.Size = new Size(370, 303);
             txtUrls.TabIndex = 0;
-            txtUrls.TextChanged += textBox1_TextChanged;
             // 
             // txtCarpeta
             // 
+            txtCarpeta.Cursor = Cursors.Hand;
             txtCarpeta.Location = new Point(398, 28);
             txtCarpeta.Name = "txtCarpeta";
             txtCarpeta.PlaceholderText = "Destination path";
@@ -62,11 +66,16 @@
             // 
             // btnSeleccionarCarpeta
             // 
+            btnSeleccionarCarpeta.Cursor = Cursors.Hand;
+            btnSeleccionarCarpeta.Image = Properties.Resources.folder_open;
+            btnSeleccionarCarpeta.ImageAlign = ContentAlignment.MiddleLeft;
             btnSeleccionarCarpeta.Location = new Point(676, 28);
             btnSeleccionarCarpeta.Name = "btnSeleccionarCarpeta";
+            btnSeleccionarCarpeta.Padding = new Padding(15, 0, 15, 0);
             btnSeleccionarCarpeta.Size = new Size(112, 23);
             btnSeleccionarCarpeta.TabIndex = 2;
             btnSeleccionarCarpeta.Text = "Browse...";
+            btnSeleccionarCarpeta.TextAlign = ContentAlignment.MiddleRight;
             btnSeleccionarCarpeta.UseVisualStyleBackColor = true;
             btnSeleccionarCarpeta.Click += btnSeleccionarCarpeta_Click;
             // 
@@ -80,11 +89,16 @@
             // 
             // btnDescargar
             // 
+            btnDescargar.Cursor = Cursors.Hand;
+            btnDescargar.Image = Properties.Resources.download_arrow;
+            btnDescargar.ImageAlign = ContentAlignment.MiddleLeft;
             btnDescargar.Location = new Point(22, 350);
             btnDescargar.Name = "btnDescargar";
-            btnDescargar.Size = new Size(123, 23);
+            btnDescargar.Padding = new Padding(10, 0, 10, 0);
+            btnDescargar.Size = new Size(127, 33);
             btnDescargar.TabIndex = 4;
             btnDescargar.Text = "Download All";
+            btnDescargar.TextAlign = ContentAlignment.MiddleRight;
             btnDescargar.UseVisualStyleBackColor = true;
             btnDescargar.Click += btnDescargar_Click;
             // 
@@ -93,34 +107,76 @@
             lblEstado.AutoSize = true;
             lblEstado.Font = new Font("Segoe UI", 15.75F, FontStyle.Regular, GraphicsUnit.Point, 0);
             lblEstado.ForeColor = Color.RoyalBlue;
-            lblEstado.Location = new Point(398, 107);
+            lblEstado.Location = new Point(398, 173);
             lblEstado.Name = "lblEstado";
-            lblEstado.Size = new Size(99, 30);
+            lblEstado.Size = new Size(69, 30);
             lblEstado.TabIndex = 5;
-            lblEstado.Text = "Waiting...";
+            lblEstado.Text = "Ready";
             // 
             // pbProgreso
             // 
-            pbProgreso.Location = new Point(398, 158);
+            pbProgreso.Location = new Point(398, 216);
             pbProgreso.Name = "pbProgreso";
             pbProgreso.Size = new Size(390, 23);
             pbProgreso.TabIndex = 6;
             // 
             // btnCancelar
             // 
-            btnCancelar.Location = new Point(151, 350);
+            btnCancelar.Cursor = Cursors.Hand;
+            btnCancelar.Enabled = false;
+            btnCancelar.Image = Properties.Resources.cancel;
+            btnCancelar.ImageAlign = ContentAlignment.MiddleLeft;
+            btnCancelar.Location = new Point(275, 350);
             btnCancelar.Name = "btnCancelar";
-            btnCancelar.Size = new Size(91, 23);
+            btnCancelar.Padding = new Padding(19, 0, 0, 0);
+            btnCancelar.Size = new Size(108, 33);
             btnCancelar.TabIndex = 7;
             btnCancelar.Text = "Cancel";
             btnCancelar.UseVisualStyleBackColor = true;
             btnCancelar.Click += btnCancelar_Click;
             // 
+            // numConcurrencia
+            // 
+            numConcurrencia.Location = new Point(398, 123);
+            numConcurrencia.Maximum = new decimal(new int[] { 20, 0, 0, 0 });
+            numConcurrencia.Minimum = new decimal(new int[] { 1, 0, 0, 0 });
+            numConcurrencia.Name = "numConcurrencia";
+            numConcurrencia.Size = new Size(272, 23);
+            numConcurrencia.TabIndex = 8;
+            numConcurrencia.Value = new decimal(new int[] { 5, 0, 0, 0 });
+            // 
+            // label1
+            // 
+            label1.AutoSize = true;
+            label1.Location = new Point(398, 102);
+            label1.Name = "label1";
+            label1.Size = new Size(143, 15);
+            label1.TabIndex = 9;
+            label1.Text = "Simultaneous downloads:";
+            // 
+            // btnPausar
+            // 
+            btnPausar.Cursor = Cursors.Hand;
+            btnPausar.Enabled = false;
+            btnPausar.Image = Properties.Resources.pause;
+            btnPausar.ImageAlign = ContentAlignment.MiddleLeft;
+            btnPausar.Location = new Point(155, 350);
+            btnPausar.Name = "btnPausar";
+            btnPausar.Padding = new Padding(20, 0, 0, 0);
+            btnPausar.Size = new Size(114, 33);
+            btnPausar.TabIndex = 10;
+            btnPausar.Text = "Pause";
+            btnPausar.UseVisualStyleBackColor = true;
+            btnPausar.Click += btnPausar_Click;
+            // 
             // BulkImageDownloader
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(800, 450);
+            ClientSize = new Size(813, 454);
+            Controls.Add(btnPausar);
+            Controls.Add(label1);
+            Controls.Add(numConcurrencia);
             Controls.Add(btnCancelar);
             Controls.Add(pbProgreso);
             Controls.Add(lblEstado);
@@ -129,9 +185,12 @@
             Controls.Add(btnSeleccionarCarpeta);
             Controls.Add(txtCarpeta);
             Controls.Add(txtUrls);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
             Icon = (Icon)resources.GetObject("$this.Icon");
+            MaximizeBox = false;
             Name = "BulkImageDownloader";
             Text = "Bulk image downloader";
+            ((System.ComponentModel.ISupportInitialize)numConcurrencia).EndInit();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -143,8 +202,11 @@
         private Button btnSeleccionarCarpeta;
         private TextBox txtNombreBase;
         private Button btnDescargar;
-        private Label lblEstado;
-        private ProgressBar pbProgreso;
+        private System.Windows.Forms.Label lblEstado;
+        private System.Windows.Forms.ProgressBar pbProgreso;
         private Button btnCancelar;
+        private NumericUpDown numConcurrencia;
+        private Label label1;
+        private Button btnPausar;
     }
 }
