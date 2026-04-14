@@ -8,6 +8,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <SupportedCultures>es</SupportedCultures>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,6 +23,9 @@
     <EmbeddedResource Update="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Update="BulkImageDownloaderForm.es.resx">
+      <DependentUpon>BulkImageDownloaderForm.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
 
