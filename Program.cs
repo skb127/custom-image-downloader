@@ -1,3 +1,6 @@
+using custom_image_downloader.Services;
+using Microsoft.Extensions.DependencyInjection;
+
 namespace custom_image_downloader
 {
     internal static class Program
@@ -9,13 +12,21 @@ namespace custom_image_downloader
         static void Main()
         {
             Application.EnableVisualStyles();
-
             Application.SetCompatibleTextRenderingDefault(false);
-
-            // To customize application configuration such as set high DPI settings or default font,
-            // see https://aka.ms/applicationconfiguration.
             ApplicationConfiguration.Initialize();
-            Application.Run(new BulkImageDownloader());
+
+            var services = new ServiceCollection();
+            ConfigureServices(services);
+            using var serviceProvider = services.BuildServiceProvider();
+            var mainForm = serviceProvider.GetRequiredService<BulkImageDownloaderForm>();
+            Application.Run(mainForm);
+        }
+
+        private static void ConfigureServices(IServiceCollection services)
+        {
+            services.AddTransient<ILogger, Logger>();
+            services.AddTransient<IDownloadManager, DownloadManager>();
+            services.AddTransient<BulkImageDownloaderForm>();
         }
     }
 }

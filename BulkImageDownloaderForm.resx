@@ -161,4 +161,10 @@
         PxXoK1Z8fPjgAAAAAElFTkSuQmCC
 </value>
   </data>
+  <data name="BulkImageDownloader_BloquearUi_Pausar" xml:space="preserve">
+    <value>Pausar</value>
+  </data>
+  <data name="BulkImageDownloader_btnDescargar_Click_Error_Fatal" xml:space="preserve">
+    <value>Error Fatal</value>
+  </data>
 </root>

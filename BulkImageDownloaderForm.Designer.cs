@@ -1,6 +1,6 @@
 ﻿namespace custom_image_downloader
 {
-    partial class BulkImageDownloader
+    partial class BulkImageDownloaderForm
     {
         /// <summary>
         ///  Required designer variable.
@@ -28,7 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(BulkImageDownloader));
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(BulkImageDownloaderForm));
             txtUrls = new TextBox();
             txtCarpeta = new TextBox();
             btnSeleccionarCarpeta = new Button();
@@ -169,7 +169,7 @@
             btnPausar.UseVisualStyleBackColor = true;
             btnPausar.Click += btnPausar_Click;
             // 
-            // BulkImageDownloader
+            // BulkImageDownloaderForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
@@ -188,7 +188,7 @@
             FormBorderStyle = FormBorderStyle.FixedSingle;
             Icon = (Icon)resources.GetObject("$this.Icon");
             MaximizeBox = false;
-            Name = "BulkImageDownloader";
+            Name = "BulkImageDownloaderForm";
             Text = "Bulk image downloader";
             ((System.ComponentModel.ISupportInitialize)numConcurrencia).EndInit();
             ResumeLayout(false);
