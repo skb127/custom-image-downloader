@@ -16,7 +16,7 @@ public class DownloadManager : IDownloadManager
     private readonly ILogger _logger;
     
     private CancellationTokenSource? _cts;
-    private bool _estaPausado = false;
+    private ManualResetEventSlim? _eventoPausa;
 
     public DownloadManager(ILogger logger)
     {
@@ -24,12 +24,21 @@ public class DownloadManager : IDownloadManager
     }
     
     // Public property so the Form can check if we are paused
-    public bool EstaPausado => _estaPausado;
+    public bool EstaPausado => _eventoPausa is not null && !_eventoPausa.IsSet;
 
     // Method to pause/resume
     public void AlternarPausa()
     {
-        _estaPausado = !_estaPausado;
+        if (_eventoPausa is null) return;
+
+        if (_eventoPausa.IsSet)
+        {
+            _eventoPausa.Reset(); // Pause
+        }
+        else
+        {
+            _eventoPausa.Set(); // Resume
+        }
     }
 
     // Method to cancel
@@ -51,7 +60,7 @@ public class DownloadManager : IDownloadManager
         IProgress<string> progresoTexto)
     {
         _cts = new CancellationTokenSource();
-        _estaPausado = false;
+        _eventoPausa = new ManualResetEventSlim(true); // Initial state is "set" (not paused)
 
         var resultado = new DownloadResult { RutaFinal = rutaSubcarpeta };
         int totalUrls = urls.Length;
@@ -80,13 +89,10 @@ public class DownloadManager : IDownloadManager
                     try
                     {
                         if (_cts.Token.IsCancellationRequested) return;
-
-                        while (_estaPausado)
-                        {
-                            await Task.Delay(500, _cts.Token);
-                        }
-
-                        // Just in case they clicked cancel in the microsecond it resumed
+                        
+                        // The task will efficiently block here if paused, without consuming CPU.
+                        // It will automatically unblock if the task is canceled.
+                        _eventoPausa.Wait(_cts.Token);
                         _cts.Token.ThrowIfCancellationRequested();
                         
                         // THE REAL DOWNLOAD
@@ -134,7 +140,7 @@ public class DownloadManager : IDownloadManager
                         int totalCompletados = Interlocked.Increment(ref procesados);
                         progresoBarra.Report(totalCompletados);
                         
-                        if (_estaPausado)
+                        if (EstaPausado)
                             progresoTexto?.Report($"Paused (Completed {totalCompletados} of {totalUrls})...");
                         else
                             progresoTexto?.Report($"Processing {totalCompletados} of {totalUrls}...");
@@ -152,15 +158,17 @@ public class DownloadManager : IDownloadManager
             {
                 resultado.FueCancelado = true;
             }
-            
-            if (_cts.Token.IsCancellationRequested)
+
+            if (_cts is not null && _cts.Token.IsCancellationRequested)
             {
                 resultado.FueCancelado = true;
             }
             
             // Clean up resources
-            _cts.Dispose();
+            _cts?.Dispose();
             _cts = null;
+            _eventoPausa?.Dispose();
+            _eventoPausa = null;
         }
         
         resultado.Exitosas = contadorExitosas;
