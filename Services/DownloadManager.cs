@@ -57,7 +57,7 @@ public class DownloadManager : IDownloadManager
         string nombreBase, 
         int concurrencia, 
         IProgress<int> progresoBarra, 
-        IProgress<string> progresoTexto)
+        IProgress<DownloadProgressInfo> progresoTexto)
     {
         _cts = new CancellationTokenSource();
         _eventoPausa = new ManualResetEventSlim(true); // Initial state is "set" (not paused)
@@ -74,7 +74,11 @@ public class DownloadManager : IDownloadManager
 
         try
         {
-            progresoTexto?.Report($"Starting {totalUrls} downloads...");
+            progresoTexto.Report(new DownloadProgressInfo
+            {
+                State = DownloadState.Starting,
+                Total = totalUrls
+            });
             await _logger.EscribirAsync($"--- START OF DOWNLOADS ({totalUrls} URLs) IN: {rutaSubcarpeta} ---");
 
             for (int i = 0; i < totalUrls; i++)
@@ -140,10 +144,12 @@ public class DownloadManager : IDownloadManager
                         int totalCompletados = Interlocked.Increment(ref procesados);
                         progresoBarra.Report(totalCompletados);
                         
-                        if (EstaPausado)
-                            progresoTexto?.Report($"Paused (Completed {totalCompletados} of {totalUrls})...");
-                        else
-                            progresoTexto?.Report($"Processing {totalCompletados} of {totalUrls}...");
+                        progresoTexto?.Report(new DownloadProgressInfo 
+                        { 
+                            State = EstaPausado ? DownloadState.Paused : DownloadState.Processing, 
+                            Processed = totalCompletados, 
+                            Total = totalUrls 
+                        });
                     }
                 }, _cts.Token));
             }

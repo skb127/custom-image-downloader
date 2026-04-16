@@ -13,6 +13,6 @@ namespace custom_image_downloader.Services
             string nombreBase,
             int concurrencia,
             IProgress<int> progresoBarra,
-            IProgress<string> progresoTexto);
+            IProgress<DownloadProgressInfo> progresoTexto);
     }
 }

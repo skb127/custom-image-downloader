@@ -1,4 +1,5 @@
 using custom_image_downloader.Models;
+using custom_image_downloader.Resources;
 using custom_image_downloader.Services;
 
 namespace custom_image_downloader;
@@ -7,14 +8,12 @@ public partial class BulkImageDownloaderForm : Form
 {
     private readonly IDownloadManager _gestor;
     private readonly ILogger _logger;
-    private readonly System.ComponentModel.ComponentResourceManager _res;
 
     public BulkImageDownloaderForm(IDownloadManager downloadManager, ILogger logger)
     {
         InitializeComponent();
         _gestor = downloadManager;
         _logger = logger;
-        _res = new System.ComponentModel.ComponentResourceManager(typeof(BulkImageDownloaderForm));
 
         AplicarTextosUi();
 
@@ -29,16 +28,16 @@ public partial class BulkImageDownloaderForm : Form
 
     private void AplicarTextosUi()
     {
-        Text = _res.GetString("UI_Form_Text") ?? "Bulk image downloader";
-        txtUrls.PlaceholderText = _res.GetString("UI_txtUrls_PlaceholderText") ?? "URLs (one URL per line)";
-        txtCarpeta.PlaceholderText = _res.GetString("UI_txtCarpeta_PlaceholderText") ?? "Destination path";
-        btnSeleccionarCarpeta.Text = _res.GetString("UI_btnSeleccionarCarpeta_Text") ?? "Browse...";
-        txtNombreBase.PlaceholderText = _res.GetString("UI_txtNombreBase_PlaceholderText") ?? "Subfolder";
-        btnDescargar.Text = _res.GetString("UI_btnDescargar_Text") ?? "Download All";
-        lblEstado.Text = _res.GetString("UI_lblEstado_Text") ?? "Ready";
-        btnCancelar.Text = _res.GetString("UI_btnCancelar_Text") ?? "Cancel";
-        label1.Text = _res.GetString("UI_label1_Text") ?? "Simultaneous downloads:";
-        btnPausar.Text = _res.GetString("PauseButtonText") ?? "Pause";
+        Text = Strings.UI_Form_Text;
+        txtUrls.PlaceholderText = Strings.UI_txtUrls_PlaceholderText;
+        txtCarpeta.PlaceholderText = Strings.UI_txtCarpeta_PlaceholderText;
+        btnSeleccionarCarpeta.Text = Strings.UI_btnSeleccionarCarpeta_Text;
+        txtNombreBase.PlaceholderText = Strings.UI_txtNombreBase_PlaceholderText;
+        btnDescargar.Text = Strings.UI_btnDescargar_Text;
+        lblEstado.Text = Strings.UI_lblEstado_Text;
+        btnCancelar.Text = Strings.UI_btnCancelar_Text;
+        label1.Text = Strings.UI_label1_Text;
+        btnPausar.Text = Strings.PauseButtonText;
     }
 
     // Event to select the destination folder
@@ -46,7 +45,7 @@ public partial class BulkImageDownloaderForm : Form
     {
         using FolderBrowserDialog dialog = new FolderBrowserDialog();
 
-        dialog.Description = _res.GetString("FolderBrowserDescription") ?? "Select the folder where files will be saved";
+        dialog.Description = Strings.FolderBrowserDescription;
         if (dialog.ShowDialog() == DialogResult.OK)
         {
             txtCarpeta.Text = dialog.SelectedPath;
@@ -67,7 +66,7 @@ public partial class BulkImageDownloaderForm : Form
         // Basic field validations
         if (urls.Length == 0 || string.IsNullOrWhiteSpace(rutaPadre) || !Directory.Exists(rutaPadre) || string.IsNullOrWhiteSpace(nombreSubcarpeta))
         {
-            MessageBox.Show(_res.GetString("ValidationErrorMessage"));
+            MessageBox.Show(Strings.ValidationErrorMessage);
             return;
         }
 
@@ -81,7 +80,7 @@ public partial class BulkImageDownloaderForm : Form
         catch (Exception ex)
         {
             await _logger.EscribirAsync($"Error creating folder '{nombreSubcarpeta}' in path '{rutaPadre}': {ex.StackTrace}");
-            MessageBox.Show(string.Format(_res.GetString("ErrorCreatingFolderMessage") ?? "Error creating folder '{0}' in path '{1}'", nombreSubcarpeta, rutaPadre));
+            MessageBox.Show(string.Format(Strings.ErrorCreatingFolderMessage, nombreSubcarpeta, rutaPadre));
             return;
         }
 
@@ -93,7 +92,16 @@ public partial class BulkImageDownloaderForm : Form
         int concurrencia = (int)numConcurrencia.Value;
 
         var progresoBarra = new Progress<int>(procesados => pbProgreso.Value = procesados);
-        var progresoTexto = new Progress<string>(mensaje => lblEstado.Text = mensaje);
+        var progresoTexto = new Progress<DownloadProgressInfo>(info =>
+        {
+            lblEstado.Text = info.State switch
+            {
+                DownloadState.Starting => string.Format(Strings.Status_Starting, info.Total),
+                DownloadState.Processing => string.Format(Strings.Status_Processing, info.Processed, info.Total),
+                DownloadState.Paused => string.Format(Strings.Status_Paused, info.Processed, info.Total),
+                _ => lblEstado.Text
+            };
+        });
 
         try
         {
@@ -112,7 +120,7 @@ public partial class BulkImageDownloaderForm : Form
         catch (Exception ex)
         {
             await _logger.EscribirAsync($"Unexpected error during download: {ex.StackTrace}");
-            MessageBox.Show(_res.GetString("UnexpectedErrorMessage"), _res.GetString("FatalErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(Strings.UnexpectedErrorMessage, Strings.FatalErrorTitle, MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         finally
         {
@@ -131,7 +139,7 @@ public partial class BulkImageDownloaderForm : Form
         
         btnPausar.Image = _gestor.EstaPausado ? Properties.Resources.resume : Properties.Resources.pause;
         btnPausar.Padding = _gestor.EstaPausado ? new Padding(18, 0, 0, 0) : new Padding(20, 0, 0, 0);
-        btnPausar.Text = _gestor.EstaPausado ? _res.GetString("ResumeButtonText") : _res.GetString("PauseButtonText");
+        btnPausar.Text = _gestor.EstaPausado ? Strings.ResumeButtonText : Strings.PauseButtonText;
     }
     
     private void btnCancelar_Click(object sender, EventArgs e)
@@ -146,7 +154,7 @@ public partial class BulkImageDownloaderForm : Form
         btnDescargar.Enabled = !bloqueado;
         btnCancelar.Enabled = bloqueado;
         btnPausar.Enabled = bloqueado;
-        btnPausar.Text = _res.GetString("PauseButtonText");
+        btnPausar.Text = Strings.PauseButtonText;
         btnPausar.Image = Properties.Resources.pause;
         btnPausar.Padding = new Padding(20, 0, 0, 0);
         
@@ -161,22 +169,22 @@ public partial class BulkImageDownloaderForm : Form
     {
         if (resultado.FueCancelado)
         {
-            lblEstado.Text = _res.GetString("DownloadCancelledStatus");
+            lblEstado.Text = Strings.DownloadCancelledStatus;
             
             if (Directory.Exists(resultado.RutaFinal)) Directory.Delete(resultado.RutaFinal, true);
-            MessageBox.Show(_res.GetString("DownloadCancelledMessage"), _res.GetString("CancelledTitle"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(Strings.DownloadCancelledMessage, Strings.CancelledTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
         else if (resultado.FracasoTotal)
         {
-            lblEstado.Text = _res.GetString("DownloadFailedStatus");
+            lblEstado.Text = Strings.DownloadFailedStatus;
             
             if (Directory.Exists(resultado.RutaFinal)) Directory.Delete(resultado.RutaFinal, true);
-            MessageBox.Show(string.Format(_res.GetString("DownloadFailedMessage") ?? "Total failure. Nothing was downloaded.\nErrors: {0}", resultado.Fallidas), _res.GetString("ErrorTitle"), MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(string.Format(Strings.DownloadFailedMessage, resultado.Fallidas), Strings.ErrorTitle, MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         else
         {
-            string msj = string.Format(_res.GetString("DownloadCompletedMessage") ?? "Download completed!\n\n• Successful: {0}\n• Failures: {1}\n\nDo you want to open the folder now?", resultado.Exitosas, resultado.Fallidas);
-            if (MessageBox.Show(msj, _res.GetString("SuccessTitle"), MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            string msj = string.Format(Strings.DownloadCompletedMessage, resultado.Exitosas, resultado.Fallidas);
+            if (MessageBox.Show(msj, Strings.SuccessTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
             {
                 System.Diagnostics.Process.Start("explorer.exe", resultado.RutaFinal);
             }
