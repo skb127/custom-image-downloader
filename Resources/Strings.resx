@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- 
     Microsoft ResX Schema 
@@ -166,6 +166,7 @@ Errors: {0}</value>
 
 • Successful: {0}
 • Failures: {1}
+• Skipped (unsupported type): {2}
 
 Do you want to open the folder now?</value>
   </data>
@@ -176,7 +177,7 @@ Do you want to open the folder now?</value>
     <value>Bulk image downloader</value>
   </data>
   <data name="UI_txtUrls_PlaceholderText" xml:space="preserve">
-    <value>URLs (one URL per line)</value>
+    <value>URLs (one URL per line, separated by line break)</value>
   </data>
   <data name="UI_txtCarpeta_PlaceholderText" xml:space="preserve">
     <value>Destination path</value>
@@ -207,5 +208,19 @@ Do you want to open the folder now?</value>
   </data>
   <data name="Status_Paused" xml:space="preserve">
     <value>Paused (Completed {0} of {1})...</value>
+  </data>
+  <data name="Validation_Title" xml:space="preserve">
+    <value>URL Validation</value>
+  </data>
+  <data name="Validation_InvalidFormatWarning" xml:space="preserve">
+    <value>{0} line(s) have an invalid URL format and will not be downloaded.
+
+{1} valid URL(s) will be processed. Do you want to continue?</value>
+  </data>
+  <data name="Validation_NoValidUrls" xml:space="preserve">
+    <value>No valid URLs found. Please check your list.</value>
+  </data>
+  <data name="Validation_Skipped" xml:space="preserve">
+    <value>• Skipped (unsupported type): {0}</value>
   </data>
 </root>

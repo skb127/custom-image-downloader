@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
 	<!-- 
 		Microsoft ResX Schema
@@ -147,6 +147,7 @@ Errores: {0}</value>
 
 • Exitosas: {0}
 • Fallidas: {1}
+• Omitidas (tipo no admitido): {2}
 
 ¿Deseas abrir la carpeta ahora?</value>
   </data>
@@ -154,7 +155,7 @@ Errores: {0}</value>
     <value>Éxito</value>
   </data>
   <data name="UI_txtUrls_PlaceholderText" xml:space="preserve">
-    <value>URLs (una URL por línea)</value>
+    <value>URLs (una URL por línea, separadas por salto de línea)</value>
   </data>
   <data name="UI_txtCarpeta_PlaceholderText" xml:space="preserve">
     <value>Ruta de destino</value>
@@ -188,5 +189,19 @@ Errores: {0}</value>
   </data>
   <data name="Status_Paused" xml:space="preserve">
     <value>Pausado (Completadas {0} de {1})...</value>
+  </data>
+  <data name="Validation_Title" xml:space="preserve">
+    <value>Validación de URLs</value>
+  </data>
+  <data name="Validation_InvalidFormatWarning" xml:space="preserve">
+    <value>{0} línea(s) tienen un formato de URL inválido y no se descargarán.
+
+{1} URL(s) válida(s) se procesarán. ¿Deseas continuar?</value>
+  </data>
+  <data name="Validation_NoValidUrls" xml:space="preserve">
+    <value>No se encontraron URLs válidas. Revisa tu lista.</value>
+  </data>
+  <data name="Validation_Skipped" xml:space="preserve">
+    <value>• Omitidas (tipo no admitido): {0}</value>
   </data>
 </root>

@@ -8,12 +8,14 @@ public partial class BulkImageDownloaderForm : Form
 {
     private readonly IDownloadManager _gestor;
     private readonly ILogger _logger;
+    private readonly IUrlValidator _validador;
 
-    public BulkImageDownloaderForm(IDownloadManager downloadManager, ILogger logger)
+    public BulkImageDownloaderForm(IDownloadManager downloadManager, ILogger logger, IUrlValidator validador)
     {
         InitializeComponent();
         _gestor = downloadManager;
         _logger = logger;
+        _validador = validador;
 
         AplicarTextosUi();
 
@@ -55,19 +57,42 @@ public partial class BulkImageDownloaderForm : Form
     // Asynchronous event to download files
     private async void btnDescargar_Click(object sender, EventArgs e)
     {
-        string[] urls = [.. txtUrls.Text
-            .Split([Environment.NewLine], StringSplitOptions.RemoveEmptyEntries)
-            .Where(url => !string.IsNullOrWhiteSpace(url))];
+        string[] urls =
+        [
+            .. txtUrls.Text
+                .Split([Environment.NewLine], StringSplitOptions.RemoveEmptyEntries)
+                .Where(url => !string.IsNullOrWhiteSpace(url))
+        ];
 
         string rutaPadre = txtCarpeta.Text;
-
         string nombreSubcarpeta = txtNombreBase.Text;
 
         // Basic field validations
-        if (urls.Length == 0 || string.IsNullOrWhiteSpace(rutaPadre) || !Directory.Exists(rutaPadre) || string.IsNullOrWhiteSpace(nombreSubcarpeta))
+        if (urls.Length == 0 || string.IsNullOrWhiteSpace(rutaPadre) || !Directory.Exists(rutaPadre) ||
+            string.IsNullOrWhiteSpace(nombreSubcarpeta))
         {
             MessageBox.Show(Strings.ValidationErrorMessage);
             return;
+        }
+
+        // --- URL FORMAT VALIDATION ---
+        var (urlsValidas, urlsInvalidas) = _validador.Validate(urls);
+
+        if (urlsValidas.Length == 0)
+        {
+            MessageBox.Show(Strings.Validation_NoValidUrls, Strings.Validation_Title,
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        if (urlsInvalidas.Length > 0)
+        {
+            string mensaje = string.Format(Strings.Validation_InvalidFormatWarning,
+                urlsInvalidas.Length, urlsValidas.Length);
+
+            if (MessageBox.Show(mensaje, Strings.Validation_Title,
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.No)
+                return;
         }
 
         // Combine the parent path with the subfolder name to get the final full path
@@ -79,16 +104,17 @@ public partial class BulkImageDownloaderForm : Form
         }
         catch (Exception ex)
         {
-            await _logger.EscribirAsync($"Error creating folder '{nombreSubcarpeta}' in path '{rutaPadre}': {ex.StackTrace}");
+            await _logger.EscribirAsync(
+                $"Error creating folder '{nombreSubcarpeta}' in path '{rutaPadre}': {ex.StackTrace}");
             MessageBox.Show(string.Format(Strings.ErrorCreatingFolderMessage, nombreSubcarpeta, rutaPadre));
             return;
         }
 
         // Prepare UI
         BloquearUi(true);
-        pbProgreso.Maximum = urls.Length;
+        pbProgreso.Maximum = urlsValidas.Length;
         pbProgreso.Value = 0;
-        
+
         int concurrencia = (int)numConcurrencia.Value;
 
         var progresoBarra = new Progress<int>(procesados => pbProgreso.Value = procesados);
@@ -106,21 +132,21 @@ public partial class BulkImageDownloaderForm : Form
         try
         {
             DownloadResult resultado = await _gestor.IniciarDescargaAsync(
-                urls, 
-                rutaCompletaSubcarpeta, 
-                nombreSubcarpeta, 
-                concurrencia, 
-                progresoBarra, 
+                urlsValidas,
+                rutaCompletaSubcarpeta,
+                nombreSubcarpeta,
+                concurrencia,
+                progresoBarra,
                 progresoTexto
             );
 
-            // 5. Process the result package returned by the Manager
             MostrarMensajeFinal(resultado);
         }
         catch (Exception ex)
         {
             await _logger.EscribirAsync($"Unexpected error during download: {ex.StackTrace}");
-            MessageBox.Show(Strings.UnexpectedErrorMessage, Strings.FatalErrorTitle, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(Strings.UnexpectedErrorMessage, Strings.FatalErrorTitle, MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
         }
         finally
         {
@@ -136,19 +162,19 @@ public partial class BulkImageDownloaderForm : Form
     private void btnPausar_Click(object sender, EventArgs e)
     {
         _gestor.AlternarPausa();
-        
+
         btnPausar.Image = _gestor.EstaPausado ? Properties.Resources.resume : Properties.Resources.pause;
         btnPausar.Padding = _gestor.EstaPausado ? new Padding(18, 0, 0, 0) : new Padding(20, 0, 0, 0);
         btnPausar.Text = _gestor.EstaPausado ? Strings.ResumeButtonText : Strings.PauseButtonText;
     }
-    
+
     private void btnCancelar_Click(object sender, EventArgs e)
     {
         _gestor.Cancelar(); // We tell the brain to abort everything
         btnCancelar.Enabled = false;
         btnPausar.Enabled = false;
     }
-    
+
     private void BloquearUi(bool bloqueado)
     {
         btnDescargar.Enabled = !bloqueado;
@@ -157,7 +183,7 @@ public partial class BulkImageDownloaderForm : Form
         btnPausar.Text = Strings.PauseButtonText;
         btnPausar.Image = Properties.Resources.pause;
         btnPausar.Padding = new Padding(20, 0, 0, 0);
-        
+
         txtUrls.Enabled = !bloqueado;
         txtCarpeta.Enabled = !bloqueado;
         txtNombreBase.Enabled = !bloqueado;
@@ -169,27 +195,38 @@ public partial class BulkImageDownloaderForm : Form
     {
         if (resultado.FueCancelado)
         {
-            lblEstado.Text = Strings.DownloadCancelledStatus;
-            
-            if (Directory.Exists(resultado.RutaFinal)) Directory.Delete(resultado.RutaFinal, true);
-            MessageBox.Show(Strings.DownloadCancelledMessage, Strings.CancelledTitle, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            lblEstado.Text = Strings.UI_lblEstado_Text;
+
+            // Delete only files downloaded in this session, not the whole folder
+            foreach (string ruta in resultado.RutasDescargadas)
+            {
+                if (File.Exists(ruta)) File.Delete(ruta);
+            }
+
+            MessageBox.Show(Strings.DownloadCancelledMessage, Strings.CancelledTitle, MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
         }
         else if (resultado.FracasoTotal)
         {
-            lblEstado.Text = Strings.DownloadFailedStatus;
-            
-            if (Directory.Exists(resultado.RutaFinal)) Directory.Delete(resultado.RutaFinal, true);
-            MessageBox.Show(string.Format(Strings.DownloadFailedMessage, resultado.Fallidas), Strings.ErrorTitle, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            lblEstado.Text = Strings.UI_lblEstado_Text;
+
+            MessageBox.Show(string.Format(Strings.DownloadFailedMessage, resultado.Fallidas), Strings.ErrorTitle,
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         else
         {
-            string msj = string.Format(Strings.DownloadCompletedMessage, resultado.Exitosas, resultado.Fallidas);
-            if (MessageBox.Show(msj, Strings.SuccessTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            lblEstado.Text = Strings.UI_lblEstado_Text;
+
+            string msj = string.Format(Strings.DownloadCompletedMessage,
+                resultado.Exitosas, resultado.Fallidas, resultado.Omitidas);
+
+            if (MessageBox.Show(msj, Strings.SuccessTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question) ==
+                DialogResult.Yes)
             {
                 System.Diagnostics.Process.Start("explorer.exe", resultado.RutaFinal);
             }
         }
-        
+
         pbProgreso.Value = 0;
     }
 }
