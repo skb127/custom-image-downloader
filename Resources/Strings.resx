@@ -197,6 +197,9 @@ Do you want to open the folder now?</value>
   <data name="UI_btnCancelar_Text" xml:space="preserve">
     <value>Cancel</value>
   </data>
+  <data name="UI_btnLimpiar_Text" xml:space="preserve">
+    <value>Clear</value>
+  </data>
   <data name="UI_label1_Text" xml:space="preserve">
     <value>Simultaneous downloads:</value>
   </data>

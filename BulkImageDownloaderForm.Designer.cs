@@ -40,6 +40,7 @@
             numConcurrencia = new NumericUpDown();
             label1 = new Label();
             btnPausar = new Button();
+            btnLimpiar = new Button();
             ((System.ComponentModel.ISupportInitialize)numConcurrencia).BeginInit();
             SuspendLayout();
             // 
@@ -82,10 +83,12 @@
             // txtNombreBase
             // 
             txtNombreBase.Location = new Point(398, 67);
+            txtNombreBase.MaxLength = 170;
             txtNombreBase.Name = "txtNombreBase";
             txtNombreBase.PlaceholderText = "Subfolder";
             txtNombreBase.Size = new Size(272, 23);
             txtNombreBase.TabIndex = 3;
+            txtNombreBase.KeyPress += txtNombreBase_KeyPress;
             // 
             // btnDescargar
             // 
@@ -169,11 +172,27 @@
             btnPausar.UseVisualStyleBackColor = true;
             btnPausar.Click += btnPausar_Click;
             // 
+            // btnLimpiar
+            // 
+            btnLimpiar.Cursor = Cursors.Hand;
+            btnLimpiar.Image = Properties.Resources.clear;
+            btnLimpiar.ImageAlign = ContentAlignment.MiddleLeft;
+            btnLimpiar.Location = new Point(22, 389);
+            btnLimpiar.Name = "btnLimpiar";
+            btnLimpiar.Padding = new Padding(32, 0, 28, 0);
+            btnLimpiar.Size = new Size(127, 32);
+            btnLimpiar.TabIndex = 11;
+            btnLimpiar.Text = "Clear";
+            btnLimpiar.TextAlign = ContentAlignment.MiddleRight;
+            btnLimpiar.UseVisualStyleBackColor = true;
+            btnLimpiar.Click += btnLimpiar_Click;
+            // 
             // BulkImageDownloaderForm
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
             ClientSize = new Size(813, 454);
+            Controls.Add(btnLimpiar);
             Controls.Add(btnPausar);
             Controls.Add(label1);
             Controls.Add(numConcurrencia);
@@ -208,5 +227,6 @@
         private System.Windows.Forms.NumericUpDown numConcurrencia;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Button btnPausar;
+        private Button btnLimpiar;
     }
 }

@@ -175,6 +175,9 @@ Errores: {0}</value>
   <data name="UI_btnCancelar_Text" xml:space="preserve">
     <value>Cancelar</value>
   </data>
+  <data name="UI_btnLimpiar_Text" xml:space="preserve">
+    <value>Vacíar</value>
+  </data>
   <data name="UI_label1_Text" xml:space="preserve">
     <value>Descargas simultáneas:</value>
   </data>
@@ -199,7 +202,7 @@ Errores: {0}</value>
 {1} URL(s) válida(s) se procesarán. ¿Deseas continuar?</value>
   </data>
   <data name="Validation_NoValidUrls" xml:space="preserve">
-    <value>No se encontraron URLs válidas. Revisa tu lista.</value>
+    <value>No se encontraron URLs válidas. Por favor, revisa tu lista.</value>
   </data>
   <data name="Validation_Skipped" xml:space="preserve">
     <value>• Omitidas (tipo no admitido): {0}</value>

@@ -24,6 +24,7 @@ public partial class BulkImageDownloaderForm : Form
         txtNombreBase.Enabled = true;
         btnSeleccionarCarpeta.Enabled = true;
         btnDescargar.Enabled = true;
+        btnLimpiar.Enabled = true;
 
         btnCancelar.Enabled = false;
     }
@@ -38,6 +39,7 @@ public partial class BulkImageDownloaderForm : Form
         btnDescargar.Text = Strings.UI_btnDescargar_Text;
         lblEstado.Text = Strings.UI_lblEstado_Text;
         btnCancelar.Text = Strings.UI_btnCancelar_Text;
+        btnLimpiar.Text = Strings.UI_btnLimpiar_Text;
         label1.Text = Strings.UI_label1_Text;
         btnPausar.Text = Strings.PauseButtonText;
     }
@@ -60,18 +62,17 @@ public partial class BulkImageDownloaderForm : Form
         string[] urls =
         [
             .. txtUrls.Text
+                .Trim()
                 .Split([Environment.NewLine], StringSplitOptions.RemoveEmptyEntries)
                 .Where(url => !string.IsNullOrWhiteSpace(url))
         ];
 
         string rutaPadre = txtCarpeta.Text;
-        string nombreSubcarpeta = txtNombreBase.Text;
 
-        // Basic field validations
-        if (urls.Length == 0 || string.IsNullOrWhiteSpace(rutaPadre) || !Directory.Exists(rutaPadre) ||
-            string.IsNullOrWhiteSpace(nombreSubcarpeta))
+        // Field validations
+        if (urls.Length == 0 || string.IsNullOrWhiteSpace(rutaPadre) || !Directory.Exists(rutaPadre))
         {
-            MessageBox.Show(Strings.ValidationErrorMessage);
+            MessageBox.Show(this, Strings.ValidationErrorMessage);
             return;
         }
 
@@ -80,7 +81,7 @@ public partial class BulkImageDownloaderForm : Form
 
         if (urlsValidas.Length == 0)
         {
-            MessageBox.Show(Strings.Validation_NoValidUrls, Strings.Validation_Title,
+            MessageBox.Show(this, Strings.Validation_NoValidUrls, Strings.Validation_Title,
                 MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
@@ -90,9 +91,17 @@ public partial class BulkImageDownloaderForm : Form
             string mensaje = string.Format(Strings.Validation_InvalidFormatWarning,
                 urlsInvalidas.Length, urlsValidas.Length);
 
-            if (MessageBox.Show(mensaje, Strings.Validation_Title,
+            if (MessageBox.Show(this, mensaje, Strings.Validation_Title,
                     MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.No)
                 return;
+        }
+
+        string nombreSubcarpeta = string.IsNullOrWhiteSpace(txtNombreBase.Text) ? "Downloads" : txtNombreBase.Text.Trim();
+
+        // Sanitize the subfolder name by replacing invalid characters with underscores
+        foreach (char c in Path.GetInvalidFileNameChars())
+        {
+            nombreSubcarpeta = nombreSubcarpeta.Replace(c, '_');
         }
 
         // Combine the parent path with the subfolder name to get the final full path
@@ -100,13 +109,13 @@ public partial class BulkImageDownloaderForm : Form
 
         try
         {
-            Directory.CreateDirectory(rutaCompletaSubcarpeta);
+            rutaCompletaSubcarpeta = Directory.CreateDirectory(rutaCompletaSubcarpeta).FullName;
         }
         catch (Exception ex)
         {
             await _logger.EscribirAsync(
                 $"Error creating folder '{nombreSubcarpeta}' in path '{rutaPadre}': {ex.StackTrace}");
-            MessageBox.Show(string.Format(Strings.ErrorCreatingFolderMessage, nombreSubcarpeta, rutaPadre));
+            MessageBox.Show(this, string.Format(Strings.ErrorCreatingFolderMessage, nombreSubcarpeta, rutaPadre));
             return;
         }
 
@@ -145,7 +154,7 @@ public partial class BulkImageDownloaderForm : Form
         catch (Exception ex)
         {
             await _logger.EscribirAsync($"Unexpected error during download: {ex.StackTrace}");
-            MessageBox.Show(Strings.UnexpectedErrorMessage, Strings.FatalErrorTitle, MessageBoxButtons.OK,
+            MessageBox.Show(this, Strings.UnexpectedErrorMessage, Strings.FatalErrorTitle, MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }
         finally
@@ -188,6 +197,7 @@ public partial class BulkImageDownloaderForm : Form
         txtCarpeta.Enabled = !bloqueado;
         txtNombreBase.Enabled = !bloqueado;
         numConcurrencia.Enabled = !bloqueado;
+        btnLimpiar.Enabled = !bloqueado;
     }
 
     // Helper method to read the DownloadResult and show the MessageBox
@@ -203,14 +213,14 @@ public partial class BulkImageDownloaderForm : Form
                 if (File.Exists(ruta)) File.Delete(ruta);
             }
 
-            MessageBox.Show(Strings.DownloadCancelledMessage, Strings.CancelledTitle, MessageBoxButtons.OK,
+            MessageBox.Show(this, Strings.DownloadCancelledMessage, Strings.CancelledTitle, MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
         }
         else if (resultado.FracasoTotal)
         {
             lblEstado.Text = Strings.UI_lblEstado_Text;
 
-            MessageBox.Show(string.Format(Strings.DownloadFailedMessage, resultado.Fallidas), Strings.ErrorTitle,
+            MessageBox.Show(this, string.Format(Strings.DownloadFailedMessage, resultado.Fallidas), Strings.ErrorTitle,
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         else
@@ -220,7 +230,7 @@ public partial class BulkImageDownloaderForm : Form
             string msj = string.Format(Strings.DownloadCompletedMessage,
                 resultado.Exitosas, resultado.Fallidas, resultado.Omitidas);
 
-            if (MessageBox.Show(msj, Strings.SuccessTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question) ==
+            if (MessageBox.Show(this, msj, Strings.SuccessTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Question) ==
                 DialogResult.Yes)
             {
                 System.Diagnostics.Process.Start("explorer.exe", resultado.RutaFinal);
@@ -228,5 +238,24 @@ public partial class BulkImageDownloaderForm : Form
         }
 
         pbProgreso.Value = 0;
+    }
+
+    private void btnLimpiar_Click(object sender, EventArgs e)
+    {
+        txtUrls.Clear();
+        txtCarpeta.Clear();
+        txtNombreBase.Clear();
+    }
+
+    private void txtNombreBase_KeyPress(object sender, KeyPressEventArgs e)
+    {
+        // Get the official list of characters prohibited by Windows
+        char[] caracteresInvalidos = Path.GetInvalidFileNameChars();
+
+        // We block invalid characters, but we must allow control characters (like backspace)
+        if (caracteresInvalidos.Contains(e.KeyChar) && !char.IsControl(e.KeyChar))
+        {
+            e.Handled = true;
+        }
     }
 }
