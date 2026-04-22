@@ -94,6 +94,7 @@ public sealed class DownloadManager : IDownloadManager
 
         // Thread-safe bag to collect paths of files written in this session
         var archivosDescargados = new System.Collections.Concurrent.ConcurrentBag<string>();
+        var archivosEnProgreso = new System.Collections.Concurrent.ConcurrentBag<string>();
 
         using SemaphoreSlim semaforo = new SemaphoreSlim(concurrencia);
         List<Task> tareas = new List<Task>();
@@ -162,6 +163,7 @@ public sealed class DownloadManager : IDownloadManager
                                                  FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 81920,
                                                  useAsync: true))
                                 {
+                                    archivosEnProgreso.Add(rutaCompletaArchivo);
                                     await contentStream.CopyToAsync(fileStream, _cts.Token);
                                 }
                             }
@@ -200,6 +202,7 @@ public sealed class DownloadManager : IDownloadManager
                             await using (FileStream fileStream = new FileStream(rutaCompletaArchivo, FileMode.Create,
                                              FileAccess.Write, FileShare.None, bufferSize: 81920, useAsync: true))
                             {
+                                archivosEnProgreso.Add(rutaCompletaArchivo);
                                 await contentStream.CopyToAsync(fileStream, _cts.Token);
                             }
 
@@ -215,7 +218,7 @@ public sealed class DownloadManager : IDownloadManager
                     catch (Exception ex)
                     {
                         Interlocked.Increment(ref contadorFallidas);
-                        await _logger.EscribirAsync($"ERROR URL: {urlActual}. Reason: {ex}");
+                        await _logger.EscribirErrorAsync($"ERROR URL: {urlActual}", ex);
                     }
                     finally
                     {
@@ -261,6 +264,7 @@ public sealed class DownloadManager : IDownloadManager
         resultado.Fallidas = contadorFallidas;
         resultado.Omitidas = contadorOmitidas;
         resultado.RutasDescargadas.AddRange(archivosDescargados);
+        resultado.RutasEnProgreso.AddRange(archivosEnProgreso);
 
         return resultado;
     }

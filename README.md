@@ -13,6 +13,7 @@ While the application is primarily designed and optimized for downloading **imag
 ## Key Features
 
 - **Bulk Downloading**: Paste hundreds or thousands of URLs — one URL per line, separated by a line break — to process them in a single batch.
+- **Clear URL List**: Quickly clear all entered URLs from the text box with a single button click.
 - **URL Format Validation**: Before starting, the application validates each line. Lines that are not valid `http`/`https` URLs (e.g. contain spaces, have an invalid scheme, or include two URLs on the same line) are flagged as invalid. A dialog informs the user of how many lines are invalid and how many are valid, giving the option to proceed or cancel.
 - **Two-Tier File Type Filtering**:
   - *Tier 1 – Extension check (no network)*: If the URL has a visible extension, it is validated locally against `AllowedExtensions`. Disallowed extensions are skipped immediately.
@@ -26,7 +27,7 @@ While the application is primarily designed and optimized for downloading **imag
 - **Pause & Resume**: Suspend the entire download queue at any moment and resume without losing progress.
 - **Graceful Cancellation**: Instantly abort the process. Only the files downloaded in the current session are removed; any pre-existing content in the destination folder is preserved.
 - **Multi-language Support (i18n)**: Fully localized UI and messages. Currently supports English (default) and Spanish (`es`), automatically adapting to the user's OS language.
-- **Dynamic Folder Management**: Select a destination and provide a subfolder name; the application handles directory creation automatically.
+- **Dynamic Folder Management**: Select a destination and provide a subfolder name (defaults to `Downloads` if left blank). The application handles directory creation automatically and safely blocks or sanitizes any invalid characters for file paths.
 - **Real-time Feedback**: Visual progress bar and status label keep the user informed of the exact progress. The status resets to *Ready* after the process completes.
 - **Daily Logging**: Errors and system events are silently recorded in a daily `log_YYYY-MM-DD.txt` file for easy debugging.
 
@@ -55,7 +56,7 @@ The project is built emphasising performance, responsive UI, and clean architect
 2. The application launches in your OS language (English or Spanish).
 3. Paste one URL per line (separated by line break) in the URLs text box.
 4. Click `Browse...` to select a parent destination folder.
-5. Enter a subfolder name (e.g. `Vacation_Pics`).
+5. Enter a subfolder name (e.g. `Vacation_Pics`). If left empty, files will be saved in a `Downloads` folder.
 6. Adjust the **Simultaneous downloads** counter to suit your connection.
 7. Click `Download`.
 8. Use `Pause`, `Resume`, or `Cancel` at any time during the process.

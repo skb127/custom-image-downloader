@@ -11,6 +11,7 @@ public sealed class DownloadResult
     public string RutaFinal { get; set; } = "";
 
     public List<string> RutasDescargadas { get; } = new();
+    public List<string> RutasEnProgreso { get; } = new();
 
     public bool FracasoTotal => Exitosas == 0 && Fallidas > 0 && !FueCancelado;
 }

@@ -1,7 +1,7 @@
-﻿namespace custom_image_downloader.Services
+namespace custom_image_downloader.Services;
+
+public interface ILogger
 {
-    public interface ILogger
-    {
-        Task EscribirAsync(string mensaje);
-    }
+    Task EscribirAsync(string mensaje);
+    Task EscribirErrorAsync(string mensaje, Exception ex);
 }

@@ -113,8 +113,7 @@ public partial class BulkImageDownloaderForm : Form
         }
         catch (Exception ex)
         {
-            await _logger.EscribirAsync(
-                $"Error creating folder '{nombreSubcarpeta}' in path '{rutaPadre}': {ex.StackTrace}");
+            await _logger.EscribirErrorAsync($"Error creating folder '{nombreSubcarpeta}' in path '{rutaPadre}'", ex);
             MessageBox.Show(this, string.Format(Strings.ErrorCreatingFolderMessage, nombreSubcarpeta, rutaPadre));
             return;
         }
@@ -153,7 +152,7 @@ public partial class BulkImageDownloaderForm : Form
         }
         catch (Exception ex)
         {
-            await _logger.EscribirAsync($"Unexpected error during download: {ex.StackTrace}");
+            await _logger.EscribirErrorAsync("Unexpected error during download", ex);
             MessageBox.Show(this, Strings.UnexpectedErrorMessage, Strings.FatalErrorTitle, MessageBoxButtons.OK,
                 MessageBoxIcon.Error);
         }
@@ -207,10 +206,11 @@ public partial class BulkImageDownloaderForm : Form
         {
             lblEstado.Text = Strings.UI_lblEstado_Text;
 
-            // Delete only files downloaded in this session, not the whole folder
-            foreach (string ruta in resultado.RutasDescargadas)
+            // Delete ALL files that were opened for writing in this session (complete + partial)
+            foreach (string ruta in resultado.RutasEnProgreso)
             {
-                if (File.Exists(ruta)) File.Delete(ruta);
+                try { if (File.Exists(ruta)) File.Delete(ruta); }
+                catch { /* ignored */ }
             }
 
             MessageBox.Show(this, Strings.DownloadCancelledMessage, Strings.CancelledTitle, MessageBoxButtons.OK,
