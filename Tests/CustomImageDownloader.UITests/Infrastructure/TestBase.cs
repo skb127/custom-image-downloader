@@ -31,15 +31,23 @@ public abstract class TestBase
 
         // 2. Path relativo al directorio de ejecución de tests
         string testDir = TestContext.CurrentContext.TestDirectory;
-        string relativeExe = Path.GetFullPath(
+
+        string debugExe = Path.GetFullPath(
             Path.Combine(testDir, "..", "..", "..", "..", "..",
                 "bin", "Debug", $"net{Environment.Version.Major}.0-windows", "custom image downloader.exe"));
 
-        if (File.Exists(relativeExe))
-            return relativeExe;
+        string releaseExe = Path.GetFullPath(
+            Path.Combine(testDir, "..", "..", "..", "..", "..",
+                "bin", "Release", $"net{Environment.Version.Major}.0-windows", "custom image downloader.exe"));
+
+        if (File.Exists(debugExe))
+            return debugExe;
+
+        if (File.Exists(releaseExe))
+            return releaseExe;
 
         throw new FileNotFoundException(
-            $"Application executable not found. Set the APP_UNDER_TEST environment variable or ensure the main project is built. Searched: {relativeExe}");
+            $"Application executable not found. Set the APP_UNDER_TEST environment variable or ensure the main project is built. Searched: {debugExe} and {releaseExe}");
     }
 
     [SetUp]
