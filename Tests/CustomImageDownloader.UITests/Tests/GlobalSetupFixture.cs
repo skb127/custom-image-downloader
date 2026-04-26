@@ -1,26 +1,28 @@
-using DotNet.Testcontainers.Builders;
-using DotNet.Testcontainers.Containers;
 using NUnit.Framework;
+using System.Net;
+using System.Net.Sockets;
 
 namespace CustomImageDownloader.UITests.Tests;
 
 /// <summary>
-/// Global setup for all UI tests. Initializes required infrastructure such as the Nginx container.
+/// Global setup for all UI tests. Initializes required infrastructure such as a local HTTP server.
 /// Access the server URL from any test via <see cref="BaseUrl"/>.
 /// </summary>
 [SetUpFixture]
 public class GlobalSetupFixture
 {
-    private IContainer? _container;
+    private HttpListener? _listener;
+    private CancellationTokenSource? _cts;
+    private Task? _serverTask;
 
     /// <summary>
-    /// The base URL of the running nginx container, e.g. "http://localhost:49320".
-    /// Available after <see cref="StartNginxAsync"/> completes.
+    /// The base URL of the running server, e.g. "http://localhost:49320".
+    /// Available after <see cref="StartServerAsync"/> completes.
     /// </summary>
     public static string BaseUrl { get; private set; } = string.Empty;
 
     [OneTimeSetUp]
-    public async Task StartNginxAsync()
+    public Task StartServerAsync()
     {
         string assetsPath = Path.Combine(
             TestContext.CurrentContext.TestDirectory, "Assets");
@@ -30,53 +32,112 @@ public class GlobalSetupFixture
                 $"Assets directory not found at: {assetsPath}. " +
                 "Ensure the Assets/ folder and its contents are set to CopyToOutputDirectory=PreserveNewest.");
 
-        // Create a custom Nginx configuration to throttle the download speed
-        string configPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "default.conf");
-        await File.WriteAllTextAsync(configPath, @"
-server {
-    listen 80;
-    server_name localhost;
-    location / {
-        root /usr/share/nginx/html;
-        index index.html index.htm;
-    }
-    location /large/ {
-        root /usr/share/nginx/html;
-        limit_rate 4m; # Throttle speed to 4 MB/s for large files
-    }
-}");
+        int hostPort = GetRandomUnusedPort();
+        BaseUrl = $"http://localhost:{hostPort}";
 
+        _listener = new HttpListener();
+        _listener.Prefixes.Add($"{BaseUrl}/");
+        _listener.Start();
+
+        _cts = new CancellationTokenSource();
+
+        _serverTask = Task.Run(async () =>
+        {
+            try
+            {
+                while (!_cts.Token.IsCancellationRequested)
+                {
+                    HttpListenerContext context = await _listener.GetContextAsync();
+                    _ = ProcessRequestAsync(context, assetsPath, _cts.Token);
+                }
+            }
+            catch (HttpListenerException)
+            {
+                // Expected when listener is stopped
+            }
+        });
+
+        return Task.CompletedTask;
+    }
+
+    private async Task ProcessRequestAsync(HttpListenerContext context, string assetsPath, CancellationToken token)
+    {
         try
         {
-            _container = new ContainerBuilder("nginx:alpine")
-                // Bind container port 80 to a random free host port to avoid conflicts
-                .WithPortBinding(80, assignRandomHostPort: true)
-                // Inject the custom configuration to throttle the speed
-                .WithResourceMapping(configPath, "/etc/nginx/conf.d")
-                // Copy all local test images into the nginx web root
-                .WithResourceMapping(assetsPath, "/usr/share/nginx/html")
-                // Wait until nginx is accepting TCP connections before proceeding
-                .WithWaitStrategy(Wait.ForUnixContainer().UntilInternalTcpPortIsAvailable(80))
-                .Build();
+            string urlPath = context.Request.Url?.AbsolutePath.TrimStart('/') ?? string.Empty;
+            string localFilePath = Path.Combine(assetsPath, urlPath);
 
-            await _container.StartAsync();
+            if (!File.Exists(localFilePath))
+            {
+                context.Response.StatusCode = 404;
+                context.Response.Close();
+                return;
+            }
 
-            int hostPort = _container.GetMappedPublicPort(80);
-            BaseUrl = $"http://localhost:{hostPort}";
+            // Simple throttling for /large/ route
+            bool throttle = urlPath.StartsWith("large/");
+
+            // Limit rate: 4MB/s
+            int bufferSize = throttle ? 4 * 1024 * 1024 : 81920;
+
+            context.Response.StatusCode = 200;
+            byte[] fileBytes = await File.ReadAllBytesAsync(localFilePath, token);
+            context.Response.ContentLength64 = fileBytes.Length;
+
+            using Stream output = context.Response.OutputStream;
+            int offset = 0;
+
+            while (offset < fileBytes.Length)
+            {
+                if (token.IsCancellationRequested)
+                    break;
+
+                int count = Math.Min(bufferSize, fileBytes.Length - offset);
+                await output.WriteAsync(fileBytes.AsMemory(offset, count), token);
+                offset += count;
+
+                if (throttle && offset < fileBytes.Length)
+                {
+                    await Task.Delay(1000, token); // Throttle 4MB per second
+                }
+            }
+            context.Response.Close();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Assert.Fail($"Failed to start the Nginx container. Ensure that Docker Desktop or the Docker engine is running.\nError detail: {ex.Message}");
+            try
+            {
+                context.Response.StatusCode = 500;
+                context.Response.Close();
+            }
+            catch { }
         }
+    }
+
+    private int GetRandomUnusedPort()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+        return port;
     }
 
     [OneTimeTearDown]
-    public async Task StopNginxAsync()
+    public async Task StopServerAsync()
     {
-        if (_container is not null)
+        _cts?.Cancel();
+        _listener?.Stop();
+
+        if (_serverTask != null)
         {
-            await _container.StopAsync();
-            await _container.DisposeAsync();
+            try
+            {
+                await _serverTask;
+            }
+            catch { }
         }
+
+        _listener?.Close();
     }
 }
