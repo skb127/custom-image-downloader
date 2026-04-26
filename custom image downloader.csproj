@@ -10,6 +10,8 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <SupportedCultures>es</SupportedCultures>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <DefaultItemExcludes>$(DefaultItemExcludes);Tests\**</DefaultItemExcludes>
+    <MinVerTagPrefix>v</MinVerTagPrefix>
   </PropertyGroup>
 
   <ItemGroup>
@@ -43,6 +45,12 @@
     <PackageReference Include="Serilog" Version="4.3.1" />
     <PackageReference Include="Serilog.Settings.Configuration" Version="10.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
+    <PackageReference Include="MinVer" Version="6.0.0" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="CustomImageDownloader.UnitTests" />
   </ItemGroup>
 
   <ItemGroup>

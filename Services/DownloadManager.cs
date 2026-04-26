@@ -5,26 +5,7 @@ namespace custom_image_downloader.Services;
 
 public sealed class DownloadManager : IDownloadManager
 {
-    // The network client now lives here
-    private static readonly HttpClient ClienteHttp;
-
-    static DownloadManager()
-    {
-        var handler = new HttpClientHandler
-        {
-            AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate
-        };
-
-        ClienteHttp = new HttpClient(handler)
-        {
-            Timeout = TimeSpan.FromMinutes(12)
-        };
-
-        // Many servers (CDNs, APIs) reject requests without a User-Agent or Accept header
-        ClienteHttp.DefaultRequestHeaders.Add("User-Agent",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
-        ClienteHttp.DefaultRequestHeaders.Add("Accept", "*/*");
-    }
+    private readonly HttpClient _clienteHttp;
 
     private readonly ILogger _logger;
     private readonly HashSet<string> _allowedExtensions;
@@ -34,8 +15,9 @@ public sealed class DownloadManager : IDownloadManager
     private CancellationTokenSource? _cts;
     private ManualResetEventSlim? _eventoPausa;
 
-    public DownloadManager(ILogger logger, IOptions<DownloadSettings> options)
+    public DownloadManager(HttpClient httpClient, ILogger logger, IOptions<DownloadSettings> options)
     {
+        _clienteHttp = httpClient;
         _logger = logger;
 
         DownloadSettings settings = options.Value;
@@ -153,7 +135,7 @@ public sealed class DownloadManager : IDownloadManager
                             string rutaCompletaArchivo = ObtenerRutaSinConflicto(rutaSubcarpeta, candidato);
                             string nombreFinal = Path.GetFileName(rutaCompletaArchivo);
 
-                            using (var response = await ClienteHttp.GetAsync(urlActual,
+                            using (var response = await _clienteHttp.GetAsync(urlActual,
                                        HttpCompletionOption.ResponseHeadersRead, _cts.Token))
                             {
                                 response.EnsureSuccessStatusCode();
@@ -175,7 +157,7 @@ public sealed class DownloadManager : IDownloadManager
                         else
                         {
                             // Tier 2: No visible extension → make the GET request and inspect Content-Type.
-                            using var response = await ClienteHttp.GetAsync(
+                            using var response = await _clienteHttp.GetAsync(
                                 urlActual, HttpCompletionOption.ResponseHeadersRead, _cts.Token);
 
                             response.EnsureSuccessStatusCode();
@@ -273,7 +255,7 @@ public sealed class DownloadManager : IDownloadManager
     /// Returns a file path that does not conflict with existing files.
     /// If <paramref name="nombreArchivo"/> already exists, appends _2, _3, … until free.
     /// </summary>
-    private static string ObtenerRutaSinConflicto(string carpeta, string nombreArchivo)
+    internal static string ObtenerRutaSinConflicto(string carpeta, string nombreArchivo)
     {
         string ruta = Path.Combine(carpeta, nombreArchivo);
         if (!File.Exists(ruta)) return ruta;

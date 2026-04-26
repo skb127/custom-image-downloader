@@ -1,6 +1,7 @@
 using custom_image_downloader.Models;
 using custom_image_downloader.Resources;
 using custom_image_downloader.Services;
+using System.Reflection;
 
 namespace custom_image_downloader;
 
@@ -27,11 +28,21 @@ public partial class BulkImageDownloaderForm : Form
         btnLimpiar.Enabled = true;
 
         btnCancelar.Enabled = false;
+
+        string? testEnvDir = Environment.GetEnvironmentVariable("DOWNLOAD_OUTPUT_DIR");
+        if (!string.IsNullOrEmpty(testEnvDir))
+        {
+            txtCarpeta.Text = testEnvDir;
+        }
     }
 
     private void AplicarTextosUi()
     {
-        Text = Strings.UI_Form_Text;
+        string? versionInfo = Assembly.GetExecutingAssembly()
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+
+        string titleVersion = string.IsNullOrWhiteSpace(versionInfo) ? "" : $" (v{versionInfo})";
+        Text = $"{Strings.UI_Form_Text}{titleVersion}";
         txtUrls.PlaceholderText = Strings.UI_txtUrls_PlaceholderText;
         txtCarpeta.PlaceholderText = Strings.UI_txtCarpeta_PlaceholderText;
         btnSeleccionarCarpeta.Text = Strings.UI_btnSeleccionarCarpeta_Text;
@@ -96,7 +107,8 @@ public partial class BulkImageDownloaderForm : Form
                 return;
         }
 
-        string nombreSubcarpeta = string.IsNullOrWhiteSpace(txtNombreBase.Text) ? "Downloads" : txtNombreBase.Text.Trim();
+        string nombreSubcarpeta =
+            string.IsNullOrWhiteSpace(txtNombreBase.Text) ? "Downloads" : txtNombreBase.Text.Trim();
 
         // Sanitize the subfolder name by replacing invalid characters with underscores
         foreach (char c in Path.GetInvalidFileNameChars())
@@ -209,8 +221,14 @@ public partial class BulkImageDownloaderForm : Form
             // Delete ALL files that were opened for writing in this session (complete + partial)
             foreach (string ruta in resultado.RutasEnProgreso)
             {
-                try { if (File.Exists(ruta)) File.Delete(ruta); }
-                catch { /* ignored */ }
+                try
+                {
+                    if (File.Exists(ruta)) File.Delete(ruta);
+                }
+                catch
+                {
+                    /* ignored */
+                }
             }
 
             MessageBox.Show(this, Strings.DownloadCancelledMessage, Strings.CancelledTitle, MessageBoxButtons.OK,

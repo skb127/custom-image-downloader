@@ -48,7 +48,17 @@ internal static class Program
 
         services.AddSingleton<IUrlValidator, UrlValidator>();
 
-        services.AddTransient<IDownloadManager, DownloadManager>();
+        services.AddHttpClient<IDownloadManager, DownloadManager>(client =>
+        {
+            client.Timeout = TimeSpan.FromMinutes(12);
+            client.DefaultRequestHeaders.Add("User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
+            client.DefaultRequestHeaders.Add("Accept", "*/*");
+        })
+        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+        {
+            AutomaticDecompression = System.Net.DecompressionMethods.GZip | System.Net.DecompressionMethods.Deflate
+        });
         services.AddTransient<BulkImageDownloaderForm>();
     }
 }
