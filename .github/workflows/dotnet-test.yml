@@ -1,0 +1,29 @@
+name: .NET Tests
+
+on:
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner)
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore "custom image downloader.sln"
+
+    - name: Build
+      run: dotnet build "custom image downloader.sln" --no-restore --configuration Release
+
+    - name: Test
+      run: dotnet test "custom image downloader.sln" --no-build --configuration Release --verbosity normal
