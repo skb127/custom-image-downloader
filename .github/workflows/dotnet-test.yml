@@ -29,4 +29,6 @@ jobs:
       run: dotnet test Tests/CustomImageDownloader.UnitTests/CustomImageDownloader.UnitTests.csproj --no-build --configuration Release --verbosity normal
 
     - name: Test UI Tests
+      env:
+        APP_UNDER_TEST: ${{ github.workspace }}\bin\Release\net8.0-windows\custom image downloader.exe
       run: dotnet test Tests/CustomImageDownloader.UITests/CustomImageDownloader.UITests.csproj --no-build --configuration Release --verbosity normal
