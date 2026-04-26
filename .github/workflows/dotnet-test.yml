@@ -25,5 +25,18 @@ jobs:
     - name: Build
       run: dotnet build "custom image downloader.sln" --no-restore --configuration Release
 
-    - name: Test
-      run: dotnet test "custom image downloader.sln" --no-build --configuration Release --verbosity normal
+    - name: Test Unit Tests
+      run: dotnet test Tests/CustomImageDownloader.UnitTests/CustomImageDownloader.UnitTests.csproj --no-build --configuration Release --verbosity normal
+
+    # In github actions, docker runs in Windows Containers mode by default on windows-latest.
+    # But Nginx test needs a linux container. We can switch the daemon using Docker cli script.
+    - name: Switch Docker daemon to Linux containers
+      run: |
+        & "C:\Program Files\Docker\Docker\DockerCli.exe" -SwitchDaemon
+        docker version
+        docker info
+      shell: powershell
+      continue-on-error: true
+
+    - name: Test UI Tests
+      run: dotnet test Tests/CustomImageDownloader.UITests/CustomImageDownloader.UITests.csproj --no-build --configuration Release --verbosity normal
