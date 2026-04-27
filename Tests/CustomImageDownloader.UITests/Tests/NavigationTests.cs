@@ -32,11 +32,6 @@ public class NavigationTests : TestBase
     [Test]
     public void BtnSeleccionarCarpeta_OpensFolderBrowserDialog()
     {
-        if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true")
-        {
-            Assert.Ignore("Native folder browser dialogs are unstable in GitHub Actions CI.");
-        }
-
         // Act
         _page.BtnSeleccionarCarpeta.Click();
 
@@ -54,11 +49,6 @@ public class NavigationTests : TestBase
     [Test]
     public void TxtCarpeta_Click_OpensFolderBrowserDialog()
     {
-        if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true")
-        {
-            Assert.Ignore("Native folder browser dialogs are unstable in GitHub Actions CI.");
-        }
-
         // Act
         _page.TxtCarpeta.Click();
 
