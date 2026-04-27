@@ -15,7 +15,7 @@ jobs:
 
   publish:
     needs: test
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner)
 
     steps:
@@ -31,27 +31,32 @@ jobs:
 
     - name: Get Version with MinVer
       id: get_version
-      shell: pwsh
+      shell: bash
       run: |
         dotnet tool install --global minver-cli --version 6.0.0
-        $version = minver --tag-prefix v
+        # Install directory in linux for dotnet global tools is usually ~/.dotnet/tools
+        export PATH="$PATH:$HOME/.dotnet/tools"
+        version=$(minver --tag-prefix v)
         echo "Calculated version: $version"
-        echo "VERSION=$version" >> $env:GITHUB_ENV
+        echo "VERSION=$version" >> $GITHUB_ENV
 
     - name: Publish Application
       run: |
         dotnet publish "custom image downloader.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o ./publish_output
 
     - name: Copy README
+      shell: bash
       run: |
-        Copy-Item -Path "README.md" -Destination "./publish_output/" -ErrorAction SilentlyContinue
+        cp README.md ./publish_output/ || true
 
     - name: Zip Files
-      shell: pwsh
+      shell: bash
       run: |
-        $zipName = "CustomImageDownloader-${{ env.VERSION }}-win-x64.zip"
-        Compress-Archive -Path ./publish_output/* -DestinationPath $zipName
-        echo "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
+        zipName="CustomImageDownloader-${{ env.VERSION }}-win-x64.zip"
+        cd publish_output
+        zip -r "../$zipName" ./*
+        cd ..
+        echo "ZIP_NAME=$zipName" >> $GITHUB_ENV
 
     - name: Create Release
       uses: softprops/action-gh-release@v2
