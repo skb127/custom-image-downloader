@@ -1,0 +1,65 @@
+name: Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    uses: ./.github/workflows/dotnet-test.yml
+
+  publish:
+    needs: test
+    runs-on: windows-latest
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner)
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Get Version with MinVer
+      id: get_version
+      shell: pwsh
+      run: |
+        dotnet tool install --global minver-cli --version 6.0.0
+        $version = minver --tag-prefix v
+        echo "Calculated version: $version"
+        echo "VERSION=$version" >> $env:GITHUB_ENV
+
+    - name: Publish Application
+      run: |
+        dotnet publish "custom image downloader.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o ./publish_output
+
+    - name: Copy README
+      run: |
+        Copy-Item -Path "README.md" -Destination "./publish_output/" -ErrorAction SilentlyContinue
+
+    - name: Zip Files
+      shell: pwsh
+      run: |
+        $zipName = "CustomImageDownloader-${{ env.VERSION }}-win-x64.zip"
+        Compress-Archive -Path ./publish_output/* -DestinationPath $zipName
+        echo "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.event_name == 'push' && github.ref_name || env.VERSION }}
+        name: Release ${{ github.event_name == 'push' && github.ref_name || env.VERSION }}
+        files: ${{ env.ZIP_NAME }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
