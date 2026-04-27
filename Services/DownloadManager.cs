@@ -1,4 +1,4 @@
-using custom_image_downloader.Models;
+﻿using custom_image_downloader.Models;
 using Microsoft.Extensions.Options;
 
 namespace custom_image_downloader.Services;

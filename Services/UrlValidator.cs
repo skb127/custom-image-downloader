@@ -1,6 +1,6 @@
 namespace custom_image_downloader.Services;
 
-public class UrlValidator : IUrlValidator
+public sealed class UrlValidator : IUrlValidator
 {
     public (string[] ValidUrls, string[] InvalidLines) Validate(string[] lines)
     {

@@ -13,7 +13,6 @@ While the application is primarily designed and optimized for downloading **imag
 ## Key Features
 
 - **Bulk Downloading**: Paste hundreds or thousands of URLs — one URL per line, separated by a line break — to process them in a single batch.
-- **Clear URL List**: Quickly clear all entered URLs from the text box with a single button click.
 - **URL Format Validation**: Before starting, the application validates each line. Lines that are not valid `http`/`https` URLs (e.g. contain spaces, have an invalid scheme, or include two URLs on the same line) are flagged as invalid. A dialog informs the user of how many lines are invalid and how many are valid, giving the option to proceed or cancel.
 - **Two-Tier File Type Filtering**:
   - *Tier 1 – Extension check (no network)*: If the URL has a visible extension, it is validated locally against `AllowedExtensions`. Disallowed extensions are skipped immediately.
@@ -43,12 +42,20 @@ The project is built emphasising performance, responsive UI, and clean architect
 - **Options Pattern**: File type configuration is managed via `IOptions<DownloadSettings>`, binding `appsettings.json` at startup. Allowed extensions and MIME types can be changed without recompiling.
 - **Dependency Injection**: `IDownloadManager`, `IUrlValidator`, and `ILogger` are registered in a `ServiceCollection` in `Program.cs` and injected into the form, keeping the UI logic clean and testable.
 - **String-Only Localization**: UI strings are applied at runtime from `.resx` resource files, keeping Designer files clean and making it trivial to add new languages.
+- **Robust Logging**: Implemented using **Serilog** to automatically write structured diagnostic and error data directly to local text files.
 
 ## Requirements
 
 - .NET 8
 - Windows 10 or later
 - Windows Forms support (run from Visual Studio or `dotnet run`).
+
+## Testing
+
+The application logic and interface are thoroughly tested to ensure reliability. The solution is divided into two testing projects:
+
+- **Unit Tests (`CustomImageDownloader.UnitTests`)**: Focuses on validating internal components. `InternalsVisibleTo` in the `.csproj` without exposing them to the public API.
+- **UI Tests (`CustomImageDownloader.UITests`)**: Automated end-to-end tests built with **FlaUI**. These tests launch the application and simulate real user interactions (typing URLs, clicking buttons, and handling dialogs) to ensure the Windows Forms interface behaves exactly as expected.
 
 ## Usage
 

@@ -1,6 +1,6 @@
 namespace custom_image_downloader.Services;
 
-public class SerilogLogger : ILogger
+public sealed class SerilogLogger : ILogger
 {
     private readonly Serilog.ILogger _log;
 
