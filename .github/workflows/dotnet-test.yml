@@ -5,11 +5,12 @@ on:
     branches:
       - '**'
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   test:
     runs-on: windows-latest
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner)
+    if: github.event_name == 'push' || github.event_name == 'workflow_call' || (github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner)
 
     steps:
     - uses: actions/checkout@v4
