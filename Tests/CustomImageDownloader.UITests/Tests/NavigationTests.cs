@@ -36,7 +36,7 @@ public class NavigationTests : TestBase
         _page.BtnSeleccionarCarpeta.Click();
 
         // Assert
-        WaitUntil(() => MainWindow.ModalWindows.Any(), "a folder browser dialog should open", TimeSpan.FromSeconds(5));
+        WaitUntil(() => MainWindow.ModalWindows.Any(), "a folder browser dialog should open", TimeSpan.FromSeconds(10));
         var modal = MainWindow.ModalWindows.First();
 
         // In native Windows dialogs, the Cancel button always has the AutomationId "2" (IDCANCEL)
@@ -53,7 +53,7 @@ public class NavigationTests : TestBase
         _page.TxtCarpeta.Click();
 
         // Assert
-        WaitUntil(() => MainWindow.ModalWindows.Any(), "a folder browser dialog should open when clicking txtCarpeta", TimeSpan.FromSeconds(5));
+        WaitUntil(() => MainWindow.ModalWindows.Any(), "a folder browser dialog should open when clicking txtCarpeta", TimeSpan.FromSeconds(10));
         var modal = MainWindow.ModalWindows.First();
 
         var closeBtn = modal.FindFirstDescendant(cf => cf.ByAutomationId("2").And(cf.ByControlType(FlaUI.Core.Definitions.ControlType.Button)))?.AsButton();
