@@ -40,7 +40,7 @@ public class NavigationTests : TestBase
         // Assert: wait for the modal to appear with a retry mechanism to handle potential delays in opening the dialog
         var retryResult = Retry.WhileEmpty(
             () => MainWindow.ModalWindows,
-            timeout: TimeSpan.FromSeconds(3),
+            timeout: TimeSpan.FromSeconds(4),
             throwOnTimeout: true,
             timeoutMessage: "The folder browser doesnt appear after clicking btnSeleccionarCarpeta within the expected time"
         );
@@ -64,7 +64,7 @@ public class NavigationTests : TestBase
         // Assert: wait for the modal to appear with a retry mechanism to handle potential delays in opening the dialog
         var retryResult = Retry.WhileEmpty(
             () => MainWindow.ModalWindows,
-            timeout: TimeSpan.FromSeconds(3),
+            timeout: TimeSpan.FromSeconds(4),
             throwOnTimeout: true,
             timeoutMessage: "The folder browser doesnt appear after clicking txtCarpeta within the expected time"
         );

@@ -77,6 +77,10 @@ public sealed class DownloadManager : IDownloadManager
         // Thread-safe bag to collect paths of files written in this session
         var archivosDescargados = new System.Collections.Concurrent.ConcurrentBag<string>();
         var archivosEnProgreso = new System.Collections.Concurrent.ConcurrentBag<string>();
+        
+        // HashSet to prevent naming collisions when processing concurrently
+        var rutasReservadas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using var semaforoRutas = new SemaphoreSlim(1, 1);
 
         using SemaphoreSlim semaforo = new SemaphoreSlim(concurrencia);
         List<Task> tareas = new List<Task>();
@@ -132,7 +136,7 @@ public sealed class DownloadManager : IDownloadManager
                                 : $"{nombreBase}_{indiceArchivo:D3}{extension}";
 
                             // Avoid collisions: append _N if the file already exists
-                            string rutaCompletaArchivo = ObtenerRutaSinConflicto(rutaSubcarpeta, candidato);
+                            string rutaCompletaArchivo = await ObtenerRutaSinConflictoAsync(rutaSubcarpeta, candidato, rutasReservadas, semaforoRutas, _cts.Token);
                             string nombreFinal = Path.GetFileName(rutaCompletaArchivo);
 
                             using (var response = await _clienteHttp.GetAsync(urlActual,
@@ -177,7 +181,7 @@ public sealed class DownloadManager : IDownloadManager
 
                             // Extensionless URL: use base+index with the inferred extension
                             string nombreFinal = $"{nombreBase}_{indiceArchivo:D3}{extensionFallback}";
-                            string rutaCompletaArchivo = ObtenerRutaSinConflicto(rutaSubcarpeta, nombreFinal);
+                            string rutaCompletaArchivo = await ObtenerRutaSinConflictoAsync(rutaSubcarpeta, nombreFinal, rutasReservadas, semaforoRutas, _cts.Token);
                             nombreFinal = Path.GetFileName(rutaCompletaArchivo);
 
                             await using (Stream contentStream = await response.Content.ReadAsStreamAsync(_cts.Token))
@@ -270,5 +274,30 @@ public sealed class DownloadManager : IDownloadManager
         } while (File.Exists(ruta));
 
         return ruta;
+    }
+
+    internal static async Task<string> ObtenerRutaSinConflictoAsync(string carpeta, string nombreArchivo, HashSet<string> rutasReservadas, SemaphoreSlim semaforo, CancellationToken token)
+    {
+        await semaforo.WaitAsync(token);
+        try
+        {
+            string ruta = Path.Combine(carpeta, nombreArchivo);
+            if (!File.Exists(ruta) && rutasReservadas.Add(ruta)) return ruta;
+
+            string sinExt = Path.GetFileNameWithoutExtension(nombreArchivo);
+            string ext = Path.GetExtension(nombreArchivo);
+            int contador = 2;
+            do
+            {
+                ruta = Path.Combine(carpeta, $"{sinExt}_{contador}{ext}");
+                contador++;
+            } while (File.Exists(ruta) || !rutasReservadas.Add(ruta));
+
+            return ruta;
+        }
+        finally
+        {
+            semaforo.Release();
+        }
     }
 }
