@@ -83,17 +83,4 @@ public abstract class TestBase
             }
         }
     }
-
-    /// <summary>Polls a predicate until it returns true or timeout expires.</summary>
-    protected static void WaitUntil(Func<bool> condition, string description, TimeSpan? timeout = null)
-    {
-        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(15));
-        while (DateTime.UtcNow < deadline)
-        {
-            if (condition()) return;
-            Thread.Sleep(200);
-        }
-
-        throw new TimeoutException($"Condition not met within timeout: {description}");
-    }
 }

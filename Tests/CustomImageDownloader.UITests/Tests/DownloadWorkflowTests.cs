@@ -1,6 +1,7 @@
 using CustomImageDownloader.UITests.Infrastructure;
 using CustomImageDownloader.UITests.Pages;
 using FlaUI.Core.AutomationElements;
+using FlaUI.Core.Tools;
 using FluentAssertions;
 using NUnit.Framework;
 
@@ -28,10 +29,20 @@ public class DownloadWorkflowTests : TestBase
         _page.BtnDescargar.Click();
 
         // Assert
-        // Wait until completion modal appears
-        WaitUntil(() => MainWindow.ModalWindows.Any(), "Download completion modal should appear");
+        // Wait until completion modal appears with a retry mechanism to handle potential delays in processing
+        var retryResult = Retry.WhileEmpty(
+            () => MainWindow.ModalWindows,
+            timeout: TimeSpan.FromSeconds(3),
+            throwOnTimeout: true,
+            timeoutMessage:
+            "Download completion modal should appear within the expected time"
+        );
+        
+        retryResult.Result.Should()
+            .NotBeNullOrEmpty("Download completion modal should be present");
 
-        var modal = MainWindow.ModalWindows.First();
+        var modal = retryResult.Result.First();
+
         new[] { "éxito", "success" }.Should().Contain(s => modal.Name.ToLower().Contains(s),
             "Completion message should indicate success");
 
@@ -63,9 +74,18 @@ public class DownloadWorkflowTests : TestBase
         _page.BtnDescargar.Click();
 
         // Assert
-        WaitUntil(() => MainWindow.ModalWindows.Any(), "Download completion modal should appear");
+        var retryResult = Retry.WhileEmpty(
+            () => MainWindow.ModalWindows,
+            timeout: TimeSpan.FromSeconds(3),
+            throwOnTimeout: true,
+            timeoutMessage: "Download completion modal should appear within the expected time"
+        );
 
-        var modal = MainWindow.ModalWindows.First();
+        retryResult.Result.Should()
+            .NotBeNullOrEmpty("Download completion modal should be present");
+
+        var modal = retryResult.Result.First();
+
         new[] { "éxito", "success" }.Should().Contain(s => modal.Name.ToLower().Contains(s),
             "Completion message should indicate success");
 
@@ -99,9 +119,17 @@ public class DownloadWorkflowTests : TestBase
 
         // Assert
         // The download manager will process it, skip it due to extension, and show the Success modal
-        WaitUntil(() => MainWindow.ModalWindows.Any(), "Completion modal should appear");
-
-        var modal = MainWindow.ModalWindows.First();
+        var retryResult = Retry.WhileEmpty(
+            () => MainWindow.ModalWindows,
+            timeout: TimeSpan.FromSeconds(3),
+            throwOnTimeout: true,
+            timeoutMessage: "Completion modal should appear within the expected time even if file is skipped"
+        );
+        
+        retryResult.Result.Should()
+            .NotBeNullOrEmpty("Completion modal should be present even if file is skipped");
+    
+        var modal = retryResult.Result.First();
         
         // Validate the title supporting both Spanish (Éxito) and English (Success)
         new[] { "éxito", "success" }.Should().Contain(s => modal.Name.ToLower().Contains(s),
@@ -139,7 +167,12 @@ public class DownloadWorkflowTests : TestBase
         _page.BtnDescargar.Click();
 
         // Wait until progress bar moves, indicating download has started
-        WaitUntil(() => _page.PbProgreso.Value > 2, "Progress bar should start moving", TimeSpan.FromSeconds(20));
+        _ = Retry.WhileFalse(
+            () => _page.PbProgreso.Value > 2,
+            timeout: TimeSpan.FromSeconds(6),
+            throwOnTimeout: true,
+            timeoutMessage: "Progress bar should start moving within the expected time, indicating download has started"
+        );
 
         // Assert (During Download)
         _page.BtnCancelar.IsEnabled.Should().BeTrue("Cancel button should be enabled during download");
@@ -149,8 +182,17 @@ public class DownloadWorkflowTests : TestBase
         _page.BtnCancelar.Click();
 
         // Assert (After Cancellation)
-        WaitUntil(() => MainWindow.ModalWindows.Any(), "Cancellation modal should appear");
-        var modal = MainWindow.ModalWindows.First();
+        var retryResultModal = Retry.WhileEmpty(
+            () => MainWindow.ModalWindows,
+            timeout: TimeSpan.FromSeconds(3),
+            throwOnTimeout: true,
+            timeoutMessage: "Cancellation modal should appear within the expected time"
+        );
+
+        retryResultModal.Result.Should()
+            .NotBeNullOrEmpty("Cancellation modal should be present");
+
+        var modal = retryResultModal.Result.First();
 
         var messageText = modal.FindFirstDescendant(cf => cf.ByControlType(FlaUI.Core.Definitions.ControlType.Text)).AsLabel()?.Text;
         new[] { "Partial files were deleted", "ficheros parciales han sido eliminados" }.Should().Contain(s => messageText != null && messageText.Contains(s), 
@@ -177,17 +219,32 @@ public class DownloadWorkflowTests : TestBase
         // Act (Start Download)
         _page.BtnDescargar.Click();
 
-        WaitUntil(() => _page.PbProgreso.Value > 2, "Progress bar should start moving", TimeSpan.FromSeconds(20));
+        var retryResultStart = Retry.WhileFalse(
+            () => _page.PbProgreso.Value > 2,
+            timeout: TimeSpan.FromSeconds(6),
+            throwOnTimeout: true,
+            timeoutMessage: "Progress bar should start moving within the expected time, indicating download has started"
+        );
 
+        retryResultStart.Result.Should()
+            .BeTrue("Progress bar should have started moving, indicating download has started");
+        
         // Act (Pause Download)
         // Pause
         _page.BtnPausar.Click();
 
         // Assert (Paused State)
         // Wait for the Label text to reflect "Paused"
-        WaitUntil(() => _page.LblEstado.Text.Contains("Pausado", StringComparison.OrdinalIgnoreCase) ||
+        var retryResultLabel = Retry.WhileFalse(
+            () => _page.LblEstado.Text.Contains("Pausado", StringComparison.OrdinalIgnoreCase) ||
                         _page.LblEstado.Text.Contains("Paused", StringComparison.OrdinalIgnoreCase),
-            "Status label should indicate Paused");
+            timeout: TimeSpan.FromSeconds(3),
+            throwOnTimeout: true,
+            timeoutMessage: "Status label should indicate Paused within the expected time"
+        );
+
+        retryResultLabel.Result.Should()
+            .BeTrue("Status label should indicate Paused/Pausado");
 
         // Check the Pause button text changes to "Resume" or "Reanudar"
         _page.BtnPausar.Name.Should().Match(s => s.Contains("Resume", StringComparison.OrdinalIgnoreCase) || s.Contains("Reanudar", StringComparison.OrdinalIgnoreCase),
@@ -205,18 +262,33 @@ public class DownloadWorkflowTests : TestBase
 
         // Assert (Resumed State & Completion)
         // Wait for the Label text to reflect "Processing" or "Procesando"
-        WaitUntil(() => _page.LblEstado.Text.Contains("Procesando", StringComparison.OrdinalIgnoreCase) ||
-                        _page.LblEstado.Text.Contains("Processing", StringComparison.OrdinalIgnoreCase),
-            "Status label should indicate Procesando/Processing");
+        var retryResultResume = Retry.WhileFalse(
+            () => _page.LblEstado.Text.Contains("Procesando", StringComparison.OrdinalIgnoreCase) ||
+                  _page.LblEstado.Text.Contains("Processing", StringComparison.OrdinalIgnoreCase),
+            timeout: TimeSpan.FromSeconds(6),
+            throwOnTimeout: true,
+            timeoutMessage: "Progress bar should advance after resuming within the expected time, Status label should indicate Procesando/Processing"
+        );
+
+        retryResultResume.Result.Should()
+            .BeTrue("Status label should indicate Procesando/Processing after resuming");
         
         // Check the Pause button text changes to "Pause" or "Pausar"
         _page.BtnPausar.Name.Should().Match(s => s.Contains("Pause", StringComparison.OrdinalIgnoreCase) || s.Contains("Pausar", StringComparison.OrdinalIgnoreCase),
             "Pause button text should change back to indicate it can pause");
 
         // Wait for it to finish
-        WaitUntil(() => MainWindow.ModalWindows.Any(), "Download completion modal should appear",
-            TimeSpan.FromSeconds(120));
-        var modal = MainWindow.ModalWindows.First();
+        var retryResultCompletion = Retry.WhileEmpty(
+            () => MainWindow.ModalWindows,
+            timeout: TimeSpan.FromSeconds(30),
+            throwOnTimeout: true,
+            timeoutMessage: "Download completion modal should appear within the expected time after resuming"
+        );
+
+        retryResultCompletion.Result.Should()
+            .NotBeNullOrEmpty("Download completion modal should be present after resuming");
+        
+        var modal = retryResultCompletion.Result.First();
 
         var messageText = modal.FindFirstDescendant(cf => cf.ByControlType(FlaUI.Core.Definitions.ControlType.Text)).AsLabel()?.Text;
         new[] { $"Successful: {urlsList.Length}", $"Exitosas: {urlsList.Length}" }.Should().Contain(s => messageText != null && messageText.Contains(s),
@@ -244,15 +316,33 @@ public class DownloadWorkflowTests : TestBase
         // Act (Start Download)
         _page.BtnDescargar.Click();
 
-        WaitUntil(() => _page.PbProgreso.Value > 2, "Progress bar should start moving", TimeSpan.FromSeconds(20));
+        var retryResult = Retry.WhileFalse(
+            () => _page.PbProgreso.Value > 2,
+            timeout: TimeSpan.FromSeconds(6),
+            throwOnTimeout: true,
+            timeoutMessage: "Progress bar should start moving within the expected time, indicating download has started"
+        );
+
+        retryResult.Result.Should()
+            .BeTrue("Progress bar should have started moving, indicating download has started");
 
         // Act (Cancel Download)
         // Cancel
         _page.BtnCancelar.Click();
 
         // Assert (After Cancellation)
-        WaitUntil(() => MainWindow.ModalWindows.Any(), "Cancellation modal should appear");
-        var modal = MainWindow.ModalWindows.First();
+        var retryResultCancel = Retry.WhileEmpty(
+            () => MainWindow.ModalWindows,
+            timeout: TimeSpan.FromSeconds(3),
+            throwOnTimeout: true,
+            timeoutMessage: "Cancellation modal should appear within the expected time"
+        );
+
+        retryResultCancel.Result.Should()
+            .NotBeNullOrEmpty("Cancellation modal should be present");
+        
+        var modal = retryResultCancel.Result.First();
+
         new[] { "cancelad", "cancel" }.Should().Contain(s => modal.Name.ToLower().Contains(s),
             "Message should indicate cancellation");
 

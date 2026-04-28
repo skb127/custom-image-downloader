@@ -1,6 +1,7 @@
 using CustomImageDownloader.UITests.Infrastructure;
 using CustomImageDownloader.UITests.Pages;
 using FlaUI.Core.AutomationElements;
+using FlaUI.Core.Tools;
 using FluentAssertions;
 using NUnit.Framework;
 
@@ -89,11 +90,18 @@ public class InputValidationTests : TestBase
         _page.BtnDescargar.Click();
 
         // Assert
-        MainWindow.ModalWindows.Should().NotBeEmpty(
+        var retryResultValidation = Retry.WhileEmpty(
+            () => MainWindow.ModalWindows,
+            timeout: TimeSpan.FromSeconds(3),
+            throwOnTimeout: true,
+            timeoutMessage: "A validation error MessageBox should appear within the expected time after clicking Download without data"
+        );
+
+        retryResultValidation.Result.Should().NotBeNullOrEmpty(
             "a validation error MessageBox should appear when clicking Download without data");
 
         // Close the MessageBox
-        var modal = MainWindow.ModalWindows.First();
+        var modal = retryResultValidation.Result.First();
 
         // Check the MessageBox text to ensure it's the expected validation error
         var messageText = modal.FindFirstDescendant(cf => cf.ByControlType(FlaUI.Core.Definitions.ControlType.Text)).AsLabel()?.Text;
