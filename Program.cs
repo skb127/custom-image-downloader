@@ -3,6 +3,7 @@ using custom_image_downloader.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
+using Serilog.Settings.Configuration;
 
 namespace custom_image_downloader;
 
@@ -37,8 +38,11 @@ internal static class Program
             .Build();
 
         // Initialize Serilog from configuration
+        // Explicitly load the Serilog.Sinks.File assembly for single-file deployment
+        var readerOptions = new ConfigurationReaderOptions(typeof(FileLoggerConfigurationExtensions).Assembly);
+
         Log.Logger = new LoggerConfiguration()
-            .ReadFrom.Configuration(config)
+            .ReadFrom.Configuration(config, readerOptions)
             .CreateLogger();
 
         // Options Pattern: bind AppSettings section and make it available as IOptions<DownloadSettings>
