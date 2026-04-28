@@ -105,6 +105,51 @@ public class DownloadWorkflowTests : TestBase
     }
 
     [Test]
+    public void Download_SameUrlMultipleTimes_DownloadsMultipleFilesWithoutConflict()
+    {
+        // Arrange
+        string testFile = "image_1.png";
+        string url = $"{ServerBaseUrl}/{testFile}";
+        string[] urlsList = [url, url, url, url];
+        string urls = string.Join("\r\n", urlsList);
+
+        _page.TxtUrls.Enter(urls);
+        _page.TxtNombreBase.Enter("duplicate_test");
+
+        // Act
+        _page.BtnDescargar.Click();
+
+        // Assert
+        var retryResult = Retry.WhileEmpty(
+            () => MainWindow.ModalWindows,
+            timeout: TimeSpan.FromSeconds(4),
+            throwOnTimeout: true,
+            timeoutMessage: "Download completion modal should appear within the expected time"
+        );
+
+        retryResult.Result.Should()
+            .NotBeNullOrEmpty("Download completion modal should be present");
+
+        var modal = retryResult.Result.First();
+
+        new[] { "éxito", "success" }.Should().Contain(s => modal.Name.ToLower().Contains(s),
+            "Completion message should indicate success");
+
+        var messageText = modal.FindFirstDescendant(cf => cf.ByControlType(FlaUI.Core.Definitions.ControlType.Text)).AsLabel()?.Text;
+        new[] { $"Successful: {urlsList.Length}", $"Exitosas: {urlsList.Length}" }.Should().Contain(s => messageText != null && messageText.Contains(s), 
+            "Message should indicate the correct number of successful downloads");
+
+        var btnNo = modal.FindFirstDescendant(cf => cf.ByName("No")).AsButton();
+        btnNo?.Invoke();
+        if (btnNo == null) modal.Close();
+
+        var expectedDir = new DirectoryInfo(Path.Combine(TestOutputDir!, "duplicate_test"));
+        expectedDir.Exists.Should().BeTrue("The output directory should have been created");
+        expectedDir.GetFiles().Length.Should().Be(urlsList.Length, $"All {urlsList.Length} files should have been downloaded to disk without conflict");
+        expectedDir.GetFiles().Select(f => f.Name).Should().OnlyHaveUniqueItems("Downloaded files should have unique names to avoid conflicts");
+    }
+
+    [Test]
     public void Download_DisallowedExtension_IsSkipped()
     {
         // Arrange

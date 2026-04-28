@@ -200,6 +200,27 @@ public class DownloadManagerTests
         Path.GetFileName(result.RutasDescargadas[0]).Should().Be("mybase_001.png");
     }
 
+    [Test]
+    public async Task Download_SameUrlMultipleTimes_DownloadsMultipleFilesWithoutConflict()
+    {
+        // Arrange
+        string url = "https://example.com/img.png";
+        _mockHttp.When(url).Respond("image/png", new MemoryStream([1, 2, 3]));
+        var sut = CreateSut();
+        string[] urls = [url, url, url, url];
+
+        // Act
+        var result = await sut.IniciarDescargaAsync(urls, _testDir, "base", 4, new Progress<int>(),
+            new Progress<DownloadProgressInfo>());
+
+        // Assert
+        result.Exitosas.Should().Be(urls.Length);
+        result.Fallidas.Should().Be(0);
+        result.Omitidas.Should().Be(0);
+        result.RutasDescargadas.Should().HaveCount(urls.Length);
+        result.RutasDescargadas.Select(Path.GetFileName).Should().OnlyHaveUniqueItems();
+    }
+
     #endregion
 
     #region Descarga Tier 2 (Sin extensión en URL)
